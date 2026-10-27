@@ -1,0 +1,159 @@
+================================================================
+ Week 5: Databases -- real psql transcript
+ PostgreSQL: 18.6 (Postgres.app)  (Postgres.app, port 1569)
+ Date: 2026-10-27
+================================================================
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
+----------------------------------------------------------------
+DROP DATABASE IF EXISTS university;
+psql:lab.sql:11: NOTICE:  database "university" does not exist, skipping
+DROP DATABASE
+DROP DATABASE IF EXISTS student_db;
+psql:lab.sql:12: NOTICE:  database "student_db" does not exist, skipping
+DROP DATABASE
+DROP DATABASE IF EXISTS course_management;
+psql:lab.sql:13: NOTICE:  database "course_management" does not exist, skipping
+DROP DATABASE
+DROP DATABASE IF EXISTS "StudentDB";
+psql:lab.sql:14: NOTICE:  database "StudentDB" does not exist, skipping
+DROP DATABASE
+CREATE DATABASE university;
+CREATE DATABASE
+                                                      List of databases
+    Name    |  Owner   | Encoding | Locale Provider |   Collate   |    Ctype    | Locale | ICU Rules |   Access privileges   
+------------+----------+----------+-----------------+-------------+-------------+--------+-----------+-----------------------
+ postgres   | postgres | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+ template0  | postgres | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | =c/postgres          +
+            |          |          |                 |             |             |        |           | postgres=CTc/postgres
+ template1  | postgres | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | =c/postgres          +
+            |          |          |                 |             |             |        |           | postgres=CTc/postgres
+ ulan       | ulan     | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+ university | ulan     | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+(5 rows)
+
+You are now connected to database "university" as user "ulan".
+SELECT current_database() AS database, current_user AS "user";
+  database  | user 
+------------+------
+ university | ulan
+(1 row)
+
+CREATE TABLE courses (
+    course_id SERIAL PRIMARY KEY,
+    title     VARCHAR(100),
+    credits   INT
+);
+CREATE TABLE
+INSERT INTO courses (title, credits) VALUES
+('Databases', 3),
+('Algorithms', 4),
+('Operating Systems', 3);
+INSERT 0 3
+SELECT * FROM courses;
+ course_id |       title       | credits 
+-----------+-------------------+---------
+         1 | Databases         |       3
+         2 | Algorithms        |       4
+         3 | Operating Systems |       3
+(3 rows)
+
+CREATE DATABASE student_db;
+CREATE DATABASE
+CREATE DATABASE course_management;
+CREATE DATABASE
+CREATE DATABASE "StudentDB";
+CREATE DATABASE
+                                                         List of databases
+       Name        |  Owner   | Encoding | Locale Provider |   Collate   |    Ctype    | Locale | ICU Rules |   Access privileges   
+-------------------+----------+----------+-----------------+-------------+-------------+--------+-----------+-----------------------
+ StudentDB         | ulan     | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+ course_management | ulan     | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+ postgres          | postgres | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+ student_db        | ulan     | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+ template0         | postgres | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | =c/postgres          +
+                   |          |          |                 |             |             |        |           | postgres=CTc/postgres
+ template1         | postgres | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | =c/postgres          +
+                   |          |          |                 |             |             |        |           | postgres=CTc/postgres
+ ulan              | ulan     | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+ university        | ulan     | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+(8 rows)
+
+You are now connected to database "student_db" as user "ulan".
+SELECT current_database() AS database;
+  database  
+------------
+ student_db
+(1 row)
+
+You are now connected to database "StudentDB" as user "ulan".
+SELECT current_database() AS database;
+ database  
+-----------
+ StudentDB
+(1 row)
+
+You are now connected to database "ulan" as user "ulan".
+DROP DATABASE "StudentDB";
+DROP DATABASE
+DROP DATABASE course_management;
+DROP DATABASE
+DROP DATABASE student_db;
+DROP DATABASE
+DROP DATABASE university;
+DROP DATABASE
+                                                     List of databases
+   Name    |  Owner   | Encoding | Locale Provider |   Collate   |    Ctype    | Locale | ICU Rules |   Access privileges   
+-----------+----------+----------+-----------------+-------------+-------------+--------+-----------+-----------------------
+ postgres  | postgres | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+ template0 | postgres | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | =c/postgres          +
+           |          |          |                 |             |             |        |           | postgres=CTc/postgres
+ template1 | postgres | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | =c/postgres          +
+           |          |          |                 |             |             |        |           | postgres=CTc/postgres
+ ulan      | ulan     | UTF8     | icu             | en_US.UTF-8 | en_US.UTF-8 | en-US  |           | 
+(4 rows)
+
+
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f errors_demo.sql
+----------------------------------------------------------------
+CREATE DATABASE select;
+psql:errors_demo.sql:14: ERROR:  syntax error at or near "select"
+LINE 1: CREATE DATABASE select;
+                        ^
+CREATE DATABASE course management;
+psql:errors_demo.sql:21: ERROR:  syntax error at or near ";"
+LINE 1: CREATE DATABASE course management;
+                                         ^
+CREATE DATABASE "StudentDB";
+CREATE DATABASE
+DROP DATABASE StudentDB;
+psql:errors_demo.sql:31: ERROR:  database "studentdb" does not exist
+DROP DATABASE "StudentDB";
+DROP DATABASE
+CREATE DATABASE university;
+CREATE DATABASE
+You are now connected to database "university" as user "ulan".
+DROP DATABASE university;
+psql:errors_demo.sql:44: ERROR:  cannot drop the currently open database
+You are now connected to database "ulan" as user "ulan".
+DROP DATABASE university;
+DROP DATABASE
+
+
+$ # (5) "database is being accessed by other users" -- needs TWO terminals
+----------------------------------------------------------------
+# terminal 1:
+$ psql -h localhost -p 1569 -U ulan -d ulan -c "CREATE DATABASE demo_busy;"
+CREATE DATABASE
+$ psql -h localhost -p 1569 -U ulan -d demo_busy -c "SELECT pg_sleep(12);"
+   # ... connection stays open for 12 seconds
+
+# terminal 2, while terminal 1 is still connected:
+$ psql -h localhost -p 1569 -U ulan -d ulan -c "DROP DATABASE demo_busy;"
+ERROR:  database "demo_busy" is being accessed by other users
+DETAIL:  There is 1 other session using the database.
+
+# terminal 2, after terminal 1 has disconnected:
+$ psql -h localhost -p 1569 -U ulan -d ulan -c "DROP DATABASE demo_busy;"
+DROP DATABASE
