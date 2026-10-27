@@ -14,11 +14,19 @@ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
 Everything is in [`lab.sql`](lab.sql); the script cleans up after itself, so it
 can be run again.
 
+Screenshots of the session are in [`screenshots/`](screenshots).
+
 ## What it does
 
 Two tables — `students` and `enrollments` — covering `SERIAL`, `INTEGER`,
 `VARCHAR(n)`, `TEXT`, `BOOLEAN`, `DATE`, and all five constraints:
 `PRIMARY KEY`, `NOT NULL`, `UNIQUE`, `CHECK`, `FOREIGN KEY`.
+
+![\d students](screenshots/01-create-table-students.png)
+
+![\d enrollments](screenshots/02-create-table-enrollments.png)
+
+![the rows inserted into both tables](screenshots/03-insert-and-select.png)
 
 Then four inserts that **fail on purpose**, one per constraint, so the rules
 are visible and not just declared:
@@ -33,8 +41,16 @@ insert or update on table "enrollments" violates foreign key constraint
 `ALTER TABLE` is shown in all five forms: add a column, change a column's
 type, add a constraint, rename a column, rename the table, drop a column.
 
+![\d student after the ALTER TABLE statements](screenshots/04-alter-table.png)
+
+`faculty` is now `department`, `phone VARCHAR(30)` was added, `age` was added
+and dropped again, and the table itself is `student` instead of `students` —
+the foreign key from `enrollments` followed the rename on its own.
+
 A `TEMP TABLE` is built from a join — `\dt` shows it in schema `pg_temp_40`
 instead of `public`, and it disappears when the session ends.
+
+![CREATE TEMP TABLE and \dt](screenshots/05-temp-table.png)
 
 Finally `DROP TABLE student` fails while `enrollments` still points at it:
 
