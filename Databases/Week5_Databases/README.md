@@ -12,7 +12,7 @@ Done locally on PostgreSQL **18.6** (Postgres.app on macOS, port `1569`).
 | `lab.sql` | The lab itself — `CREATE DATABASE`, `\c`, naming conventions, `DROP DATABASE`. Re-runnable: it cleans up after itself. |
 | `errors_demo.sql` | The lab's "Important Notes", demonstrated. Every statement here is *meant* to fail, so the exact PostgreSQL error is visible. |
 | `output.txt` | Real psql transcript of both scripts running on my machine. |
-| `screenshots/` | Screenshots of the session. |
+| `screenshots/` | Screenshots of the psql session, numbered in the order the lab was done. |
 
 ## How to run
 
@@ -45,6 +45,8 @@ CREATE DATABASE university;
 
 `\l` lists all databases and confirms it exists.
 
+![CREATE DATABASE university, then \l](screenshots/01-create-database.png)
+
 ### 2. Switching databases — `\c`
 
 ```
@@ -63,6 +65,8 @@ psql -d university -U ulan -h localhost -p 1569
 A table created in `university` exists only there — `\dt` in another database
 shows nothing.
 
+![\c university, current_database(), CREATE TABLE, \dt](screenshots/02-switch-database.png)
+
 ### 3. Naming conventions
 
 | Rule | Why |
@@ -73,6 +77,12 @@ shows nothing.
 | short but descriptive | you type it on every connect |
 
 Good: `student_db`, `course_management` — Avoid: `StudentDB`, `course management`, `select`
+
+![three databases created, \l showing StudentDB next to the snake_case ones](screenshots/03-naming-conventions.png)
+
+`StudentDB` connects only when the name is quoted exactly as it was created:
+
+![\c student_db then \c "StudentDB"](screenshots/04-case-sensitivity.png)
 
 ### 4. `DROP DATABASE`
 
@@ -101,6 +111,8 @@ DROP DATABASE university;         -- while connected to university
 ERROR:  cannot drop the currently open database
 ```
 
+![all four errors in one psql session](screenshots/05-errors.png)
+
 The "being accessed by other users" case needs two terminals, so it is not in
 the `.sql` file:
 
@@ -118,4 +130,11 @@ ERROR:  database "demo_busy" is being accessed by other users
 DETAIL:  There is 1 other session using the database.
 ```
 
-Once terminal 1 disconnects, the same `DROP DATABASE` succeeds.
+Once terminal 1 disconnects, the same `DROP DATABASE` succeeds. (Two live
+terminals do not fit in one screenshot — the full run is in `output.txt`.)
+
+## Cleaning up
+
+All four databases dropped, `\l` back to the four that ship with the server:
+
+![DROP DATABASE x4 and a clean \l](screenshots/06-drop-database.png)
