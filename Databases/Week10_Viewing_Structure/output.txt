@@ -1,0 +1,366 @@
+================================================================
+ Week 10: Viewing Database and Table Structure -- real psql transcript
+ PostgreSQL: 18.6 (Windows 10, EDB installer)  port 1569
+ Date: 2026-11-02
+================================================================
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
+----------------------------------------------------------------
+DROP DATABASE IF EXISTS coffee;
+psql:lab.sql:9: NOTICE:  database "coffee" does not exist, skipping
+DROP DATABASE
+CREATE DATABASE coffee;
+CREATE DATABASE
+You are now connected to database "coffee" as user "ulan".
+CREATE TABLE suppliers (
+    sup_id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    sup_name VARCHAR(255) NOT NULL,
+    street   VARCHAR(255),
+    city     VARCHAR(255),
+    state    VARCHAR(255),
+    zip      VARCHAR(255)
+);
+CREATE TABLE
+CREATE TABLE coffees (
+    cof_name VARCHAR(32) PRIMARY KEY,
+    sup_id   INTEGER NOT NULL REFERENCES suppliers(sup_id),
+    price    REAL CHECK (price >= 0),
+    sales    INTEGER DEFAULT 0,
+    total    INTEGER DEFAULT 0
+);
+CREATE TABLE
+CREATE TABLE coffee_houses (
+    store_id INTEGER PRIMARY KEY,
+    city     VARCHAR(255),
+    coffee   INTEGER,
+    merch    INTEGER,
+    total    INTEGER
+);
+CREATE TABLE
+CREATE TABLE cof_inventory (
+    warehouse_id INTEGER,
+    cof_name     VARCHAR(32) REFERENCES coffees(cof_name),
+    sup_id       INTEGER REFERENCES suppliers(sup_id),
+    quan         INTEGER,
+    date_val     DATE,
+    PRIMARY KEY (warehouse_id, cof_name, sup_id)
+);
+CREATE TABLE
+CREATE TABLE merch_inventory (
+    item_id   INTEGER PRIMARY KEY,
+    item_name VARCHAR(255),
+    sup_id    INTEGER REFERENCES suppliers(sup_id),
+    quan      INTEGER,
+    date      DATE
+);
+CREATE TABLE
+CREATE TABLE university_students (
+    student_id    INTEGER PRIMARY KEY,
+    first_name    TEXT NOT NULL,
+    last_name     VARCHAR(50) NOT NULL,
+    email_address VARCHAR(100) UNIQUE,
+    date_of_birth DATE
+);
+CREATE TABLE
+CREATE INDEX idx_coffees_sup ON coffees(sup_id);
+CREATE INDEX
+CREATE VIEW coffee_sales AS
+SELECT c.cof_name, s.sup_name, c.price, c.sales, c.price * c.sales AS revenue
+FROM coffees c JOIN suppliers s USING (sup_id);
+CREATE VIEW
+INSERT INTO suppliers (sup_name, street, city, state, zip) VALUES
+('Acme, Inc.',       '99 Market Street', 'Groundsville', 'CA', '95199'),
+('Superior Coffee',  '1 Party Place',    'Mendocino',    'CA', '95460'),
+('The High Ground',  '100 Coffee Lane',  'Meadows',      'CA', '93966');
+INSERT 0 3
+INSERT INTO coffees VALUES
+('Colombian',          1, 7.99, 175, 1240),
+('French_Roast',       2, 8.99, 150,  980),
+('Espresso',           3, 9.99,  60,  410),
+('Colombian_Decaf',    1, 8.99, 155,  700),
+('French_Roast_Decaf', 2, 9.99,  90,  520);
+INSERT 0 5
+INSERT INTO coffee_houses VALUES
+(10023, 'Mendocino', 3450, 2005, 5455),
+(33002, 'Seattle',   4699, 3109, 7808),
+(10040, 'SF',        5386, 2841, 8227);
+INSERT 0 3
+INSERT INTO cof_inventory VALUES
+(1234, 'Colombian',    1, 500, '2026-10-01'),
+(1234, 'French_Roast', 2, 300, '2026-10-01'),
+(1234, 'Espresso',     3, 120, '2026-10-01');
+INSERT 0 3
+INSERT INTO merch_inventory VALUES
+(1, 'Cup_Large', 1, 28, '2026-10-01'),
+(2, 'Cup_Small', 1, 36, '2026-10-01'),
+(3, 'Saucer',    2, 64, '2026-10-01');
+INSERT 0 3
+INSERT INTO university_students VALUES
+(1, 'Aibek',  'Sharshenov',    'aibek@alatoo.edu.kg',  '2002-05-12'),
+(2, 'Ainura', 'Toktomamatova', 'ainura@alatoo.edu.kg', '2001-09-23');
+INSERT 0 2
+                                                        List of databases
+  Name  | Owner | Encoding | Locale Provider |       Collate       |        Ctype        | Locale | ICU Rules | Access privileges 
+--------+-------+----------+-----------------+---------------------+---------------------+--------+-----------+-------------------
+ coffee | ulan  | UTF8     | libc            | Russian_Russia.1251 | Russian_Russia.1251 |        |           | 
+(1 row)
+
+      List of schemas
+  Name  |       Owner       
+--------+-------------------
+ public | pg_database_owner
+(1 row)
+
+SELECT current_database(), current_schema();
+ current_database | current_schema 
+------------------+----------------
+ coffee           | public
+(1 row)
+
+                List of tables
+ Schema |        Name         | Type  | Owner 
+--------+---------------------+-------+-------
+ public | cof_inventory       | table | ulan
+ public | coffee_houses       | table | ulan
+ public | coffees             | table | ulan
+ public | merch_inventory     | table | ulan
+ public | suppliers           | table | ulan
+ public | university_students | table | ulan
+(6 rows)
+
+                                            List of tables
+ Schema |        Name         | Type  | Owner | Persistence | Access method |    Size    | Description 
+--------+---------------------+-------+-------+-------------+---------------+------------+-------------
+ public | cof_inventory       | table | ulan  | permanent   | heap          | 8192 bytes | 
+ public | coffee_houses       | table | ulan  | permanent   | heap          | 8192 bytes | 
+ public | coffees             | table | ulan  | permanent   | heap          | 8192 bytes | 
+ public | merch_inventory     | table | ulan  | permanent   | heap          | 8192 bytes | 
+ public | suppliers           | table | ulan  | permanent   | heap          | 16 kB      | 
+ public | university_students | table | ulan  | permanent   | heap          | 16 kB      | 
+(6 rows)
+
+                    Table "public.coffee_houses"
+  Column  |          Type          | Collation | Nullable | Default 
+----------+------------------------+-----------+----------+---------
+ store_id | integer                |           | not null | 
+ city     | character varying(255) |           |          | 
+ coffee   | integer                |           |          | 
+ merch    | integer                |           |          | 
+ total    | integer                |           |          | 
+Indexes:
+    "coffee_houses_pkey" PRIMARY KEY, btree (store_id)
+
+                                Table "public.suppliers"
+  Column  |          Type          | Collation | Nullable |           Default            
+----------+------------------------+-----------+----------+------------------------------
+ sup_id   | integer                |           | not null | generated always as identity
+ sup_name | character varying(255) |           | not null | 
+ street   | character varying(255) |           |          | 
+ city     | character varying(255) |           |          | 
+ state    | character varying(255) |           |          | 
+ zip      | character varying(255) |           |          | 
+Indexes:
+    "suppliers_pkey" PRIMARY KEY, btree (sup_id)
+Referenced by:
+    TABLE "cof_inventory" CONSTRAINT "cof_inventory_sup_id_fkey" FOREIGN KEY (sup_id) REFERENCES suppliers(sup_id)
+    TABLE "coffees" CONSTRAINT "coffees_sup_id_fkey" FOREIGN KEY (sup_id) REFERENCES suppliers(sup_id)
+    TABLE "merch_inventory" CONSTRAINT "merch_inventory_sup_id_fkey" FOREIGN KEY (sup_id) REFERENCES suppliers(sup_id)
+
+                      Table "public.coffees"
+  Column  |         Type          | Collation | Nullable | Default 
+----------+-----------------------+-----------+----------+---------
+ cof_name | character varying(32) |           | not null | 
+ sup_id   | integer               |           | not null | 
+ price    | real                  |           |          | 
+ sales    | integer               |           |          | 0
+ total    | integer               |           |          | 0
+Indexes:
+    "coffees_pkey" PRIMARY KEY, btree (cof_name)
+    "idx_coffees_sup" btree (sup_id)
+Check constraints:
+    "coffees_price_check" CHECK (price >= 0::double precision)
+Foreign-key constraints:
+    "coffees_sup_id_fkey" FOREIGN KEY (sup_id) REFERENCES suppliers(sup_id)
+Referenced by:
+    TABLE "cof_inventory" CONSTRAINT "cof_inventory_cof_name_fkey" FOREIGN KEY (cof_name) REFERENCES coffees(cof_name)
+
+                     Table "public.cof_inventory"
+    Column    |         Type          | Collation | Nullable | Default 
+--------------+-----------------------+-----------+----------+---------
+ warehouse_id | integer               |           | not null | 
+ cof_name     | character varying(32) |           | not null | 
+ sup_id       | integer               |           | not null | 
+ quan         | integer               |           |          | 
+ date_val     | date                  |           |          | 
+Indexes:
+    "cof_inventory_pkey" PRIMARY KEY, btree (warehouse_id, cof_name, sup_id)
+Foreign-key constraints:
+    "cof_inventory_cof_name_fkey" FOREIGN KEY (cof_name) REFERENCES coffees(cof_name)
+    "cof_inventory_sup_id_fkey" FOREIGN KEY (sup_id) REFERENCES suppliers(sup_id)
+
+COMMENT ON TABLE coffees IS 'Coffee blends sold, one row per blend';
+COMMENT
+COMMENT ON COLUMN coffees.total IS 'Total pounds sold to date';
+COMMENT
+                                                        Table "public.coffees"
+  Column  |         Type          | Collation | Nullable | Default | Storage  | Compression | Stats target |        Description        
+----------+-----------------------+-----------+----------+---------+----------+-------------+--------------+---------------------------
+ cof_name | character varying(32) |           | not null |         | extended |             |              | 
+ sup_id   | integer               |           | not null |         | plain    |             |              | 
+ price    | real                  |           |          |         | plain    |             |              | 
+ sales    | integer               |           |          | 0       | plain    |             |              | 
+ total    | integer               |           |          | 0       | plain    |             |              | Total pounds sold to date
+Indexes:
+    "coffees_pkey" PRIMARY KEY, btree (cof_name)
+    "idx_coffees_sup" btree (sup_id)
+Check constraints:
+    "coffees_price_check" CHECK (price >= 0::double precision)
+Foreign-key constraints:
+    "coffees_sup_id_fkey" FOREIGN KEY (sup_id) REFERENCES suppliers(sup_id)
+Referenced by:
+    TABLE "cof_inventory" CONSTRAINT "cof_inventory_cof_name_fkey" FOREIGN KEY (cof_name) REFERENCES coffees(cof_name)
+Not-null constraints:
+    "coffees_cof_name_not_null" NOT NULL "cof_name"
+    "coffees_sup_id_not_null" NOT NULL "sup_id"
+Access method: heap
+
+                List of relations
+ Schema |         Name         |   Type   | Owner 
+--------+----------------------+----------+-------
+ public | cof_inventory        | table    | ulan
+ public | coffee_houses        | table    | ulan
+ public | coffee_sales         | view     | ulan
+ public | coffees              | table    | ulan
+ public | merch_inventory      | table    | ulan
+ public | suppliers            | table    | ulan
+ public | suppliers_sup_id_seq | sequence | ulan
+ public | university_students  | table    | ulan
+(8 rows)
+
+                                   List of indexes
+ Schema |                 Name                  | Type  | Owner |        Table        
+--------+---------------------------------------+-------+-------+---------------------
+ public | cof_inventory_pkey                    | index | ulan  | cof_inventory
+ public | coffee_houses_pkey                    | index | ulan  | coffee_houses
+ public | coffees_pkey                          | index | ulan  | coffees
+ public | idx_coffees_sup                       | index | ulan  | coffees
+ public | merch_inventory_pkey                  | index | ulan  | merch_inventory
+ public | suppliers_pkey                        | index | ulan  | suppliers
+ public | university_students_email_address_key | index | ulan  | university_students
+ public | university_students_pkey              | index | ulan  | university_students
+(8 rows)
+
+            List of views
+ Schema |     Name     | Type | Owner 
+--------+--------------+------+-------
+ public | coffee_sales | view | ulan
+(1 row)
+
+                                 View "public.coffee_sales"
+  Column  |          Type          | Collation | Nullable | Default | Storage  | Description 
+----------+------------------------+-----------+----------+---------+----------+-------------
+ cof_name | character varying(32)  |           |          |         | extended | 
+ sup_name | character varying(255) |           |          |         | extended | 
+ price    | real                   |           |          |         | plain    | 
+ sales    | integer                |           |          |         | plain    | 
+ revenue  | double precision       |           |          |         | plain    | 
+View definition:
+ SELECT c.cof_name,
+    s.sup_name,
+    c.price,
+    c.sales,
+    c.price * c.sales::double precision AS revenue
+   FROM coffees c
+     JOIN suppliers s USING (sup_id);
+
+                List of sequences
+ Schema |         Name         |   Type   | Owner 
+--------+----------------------+----------+-------
+ public | suppliers_sup_id_seq | sequence | ulan
+(1 row)
+
+                         List of functions
+   Schema   | Name  | Result data type | Argument data types | Type 
+------------+-------+------------------+---------------------+------
+ pg_catalog | lower | anyelement       | anymultirange       | func
+ pg_catalog | lower | anyelement       | anyrange            | func
+ pg_catalog | lower | text             | text                | func
+(3 rows)
+
+SELECT table_name, table_type
+FROM information_schema.tables
+WHERE table_schema = 'public'
+ORDER BY table_name;
+     table_name      | table_type 
+---------------------+------------
+ cof_inventory       | BASE TABLE
+ coffee_houses       | BASE TABLE
+ coffee_sales        | VIEW
+ coffees             | BASE TABLE
+ merch_inventory     | BASE TABLE
+ suppliers           | BASE TABLE
+ university_students | BASE TABLE
+(7 rows)
+
+SELECT column_name, data_type, character_maximum_length AS max_len,
+       is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'suppliers'
+ORDER BY ordinal_position;
+ column_name |     data_type     | max_len | is_nullable | column_default 
+-------------+-------------------+---------+-------------+----------------
+ sup_id      | integer           |         | NO          | 
+ sup_name    | character varying |     255 | NO          | 
+ street      | character varying |     255 | YES         | 
+ city        | character varying |     255 | YES         | 
+ state       | character varying |     255 | YES         | 
+ zip         | character varying |     255 | YES         | 
+(6 rows)
+
+SELECT tc.table_name  AS child_table,
+       kcu.column_name AS child_column,
+       ccu.table_name  AS parent_table,
+       ccu.column_name AS parent_column
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu
+     ON kcu.constraint_name = tc.constraint_name
+JOIN information_schema.constraint_column_usage ccu
+     ON ccu.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY'
+ORDER BY child_table, child_column;
+   child_table   | child_column | parent_table | parent_column 
+-----------------+--------------+--------------+---------------
+ cof_inventory   | cof_name     | coffees      | cof_name
+ cof_inventory   | sup_id       | suppliers    | sup_id
+ coffees         | sup_id       | suppliers    | sup_id
+ merch_inventory | sup_id       | suppliers    | sup_id
+(4 rows)
+
+SELECT relname AS table_name, n_live_tup AS rows,
+       pg_size_pretty(pg_total_relation_size(relid)) AS total_size
+FROM pg_stat_user_tables
+ORDER BY relname;
+     table_name      | rows | total_size 
+---------------------+------+------------
+ cof_inventory       |    0 | 24 kB
+ coffee_houses       |    0 | 24 kB
+ coffees             |    0 | 40 kB
+ merch_inventory     |    0 | 24 kB
+ suppliers           |    0 | 32 kB
+ university_students |    0 | 48 kB
+(6 rows)
+
+Expanded display is on.
+SELECT * FROM suppliers WHERE sup_id = 1;
+-[ RECORD 1 ]--------------
+sup_id   | 1
+sup_name | Acme, Inc.
+street   | 99 Market Street
+city     | Groundsville
+state    | CA
+zip      | 95199
+
+Expanded display is off.
+You are now connected to database "ulan" as user "ulan".
+DROP DATABASE coffee;
+DROP DATABASE
