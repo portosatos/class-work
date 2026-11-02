@@ -1,0 +1,187 @@
+================================================================
+ Week 11: Basic Data Operations -- real psql transcript
+ PostgreSQL: 18.6 (Windows 10, EDB installer)  port 1569
+ Date: 2026-11-02
+================================================================
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
+----------------------------------------------------------------
+DROP TABLE IF EXISTS students, students_archive;
+psql:lab.sql:10: NOTICE:  table "students" does not exist, skipping
+psql:lab.sql:10: NOTICE:  table "students_archive" does not exist, skipping
+DROP TABLE
+CREATE TABLE students (
+    student_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name  VARCHAR(50),
+    birth_date DATE
+);
+CREATE TABLE
+INSERT INTO students (first_name, last_name, birth_date)
+VALUES ('Aibek', 'Sharshenov', '2002-05-12');
+INSERT 0 1
+INSERT INTO students (first_name, last_name, birth_date) VALUES
+('Ainura', 'Toktomamatova', '2001-09-23'),
+('Bakyt',  'Mamatov',       '2003-01-15'),
+('Gulzat', 'Sultanova',     '2002-07-30');
+INSERT 0 3
+INSERT INTO students (first_name, last_name, birth_date)
+VALUES ('Azamat', 'Uulu', '2000-12-01')
+RETURNING student_id, first_name;
+ student_id | first_name 
+------------+------------
+          5 | Azamat
+(1 row)
+
+INSERT 0 1
+SELECT * FROM students ORDER BY student_id;
+ student_id | first_name |   last_name   | birth_date 
+------------+------------+---------------+------------
+          1 | Aibek      | Sharshenov    | 2002-05-12
+          2 | Ainura     | Toktomamatova | 2001-09-23
+          3 | Bakyt      | Mamatov       | 2003-01-15
+          4 | Gulzat     | Sultanova     | 2002-07-30
+          5 | Azamat     | Uulu          | 2000-12-01
+(5 rows)
+
+UPDATE students
+SET birth_date = '2002-05-15'
+WHERE first_name = 'Aibek' AND last_name = 'Sharshenov';
+UPDATE 1
+UPDATE students
+SET first_name = 'Bakytbek', birth_date = birth_date + 1
+WHERE student_id = 3
+RETURNING *;
+ student_id | first_name | last_name | birth_date 
+------------+------------+-----------+------------
+          3 | Bakytbek   | Mamatov   | 2003-01-16
+(1 row)
+
+UPDATE 1
+UPDATE students SET last_name = 'X' WHERE student_id = 999;
+UPDATE 0
+SELECT * FROM students ORDER BY student_id;
+ student_id | first_name |   last_name   | birth_date 
+------------+------------+---------------+------------
+          1 | Aibek      | Sharshenov    | 2002-05-15
+          2 | Ainura     | Toktomamatova | 2001-09-23
+          3 | Bakytbek   | Mamatov       | 2003-01-16
+          4 | Gulzat     | Sultanova     | 2002-07-30
+          5 | Azamat     | Uulu          | 2000-12-01
+(5 rows)
+
+DELETE FROM students
+WHERE first_name = 'Gulzat' AND last_name = 'Sultanova';
+DELETE 1
+DELETE FROM students
+WHERE birth_date < '2002-01-01'
+RETURNING student_id, first_name, birth_date;
+ student_id | first_name | birth_date 
+------------+------------+------------
+          2 | Ainura     | 2001-09-23
+          5 | Azamat     | 2000-12-01
+(2 rows)
+
+DELETE 2
+SELECT * FROM students ORDER BY student_id;
+ student_id | first_name | last_name  | birth_date 
+------------+------------+------------+------------
+          1 | Aibek      | Sharshenov | 2002-05-15
+          3 | Bakytbek   | Mamatov    | 2003-01-16
+(2 rows)
+
+COPY  students ( first_name, last_name, birth_date ) FROM STDIN DELIMITER ',' CSV HEADER
+COPY 3
+SELECT * FROM students ORDER BY student_id;
+ student_id | first_name | last_name  | birth_date 
+------------+------------+------------+------------
+          1 | Aibek      | Sharshenov | 2002-05-15
+          3 | Bakytbek   | Mamatov    | 2003-01-16
+          6 | Nursultan  | Isakov     | 2002-04-10
+          7 | Meerim     | Bekova     | 2003-06-12
+          8 | Tilek      | Usubaliev  | 2001-11-05
+(5 rows)
+
+CREATE TABLE students_archive (LIKE students);
+CREATE TABLE
+INSERT INTO students_archive SELECT * FROM students WHERE birth_date < '2002-06-01';
+INSERT 0 3
+SELECT * FROM students_archive;
+ student_id | first_name | last_name  | birth_date 
+------------+------------+------------+------------
+          1 | Aibek      | Sharshenov | 2002-05-15
+          6 | Nursultan  | Isakov     | 2002-04-10
+          8 | Tilek      | Usubaliev  | 2001-11-05
+(3 rows)
+
+INSERT INTO students (first_name, last_name, birth_date) VALUES
+('Ermek', 'Uulu', '2002-02-02');
+INSERT 0 1
+UPDATE students
+SET last_name = 'Bekov'
+WHERE last_name IN ('Uulu', 'Isakov');
+UPDATE 2
+SELECT * FROM students ORDER BY student_id;
+ student_id | first_name | last_name  | birth_date 
+------------+------------+------------+------------
+          1 | Aibek      | Sharshenov | 2002-05-15
+          3 | Bakytbek   | Mamatov    | 2003-01-16
+          6 | Nursultan  | Bekov      | 2002-04-10
+          7 | Meerim     | Bekova     | 2003-06-12
+          8 | Tilek      | Usubaliev  | 2001-11-05
+          9 | Ermek      | Bekov      | 2002-02-02
+(6 rows)
+
+DELETE FROM students
+WHERE student_id IN (2, 3, 5);
+DELETE 1
+SELECT * FROM students ORDER BY student_id;
+ student_id | first_name | last_name  | birth_date 
+------------+------------+------------+------------
+          1 | Aibek      | Sharshenov | 2002-05-15
+          6 | Nursultan  | Bekov      | 2002-04-10
+          7 | Meerim     | Bekova     | 2003-06-12
+          8 | Tilek      | Usubaliev  | 2001-11-05
+          9 | Ermek      | Bekov      | 2002-02-02
+(5 rows)
+
+BEGIN;
+BEGIN
+UPDATE students SET last_name = 'Oops';
+UPDATE 5
+SELECT student_id, first_name, last_name FROM students ORDER BY student_id;
+ student_id | first_name | last_name 
+------------+------------+-----------
+          1 | Aibek      | Oops
+          6 | Nursultan  | Oops
+          7 | Meerim     | Oops
+          8 | Tilek      | Oops
+          9 | Ermek      | Oops
+(5 rows)
+
+DELETE FROM students;
+DELETE 5
+SELECT count(*) FROM students;
+ count 
+-------
+     0
+(1 row)
+
+ROLLBACK;
+ROLLBACK
+SELECT count(*) FROM students;
+ count 
+-------
+     5
+(1 row)
+
+TRUNCATE students_archive;
+TRUNCATE TABLE
+SELECT count(*) FROM students_archive;
+ count 
+-------
+     0
+(1 row)
+
+DROP TABLE students, students_archive;
+DROP TABLE
