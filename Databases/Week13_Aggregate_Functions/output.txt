@@ -1,0 +1,364 @@
+================================================================
+ Week 13: Aggregate Functions -- real psql transcript
+ PostgreSQL: 18.6 (Windows 10, EDB installer)  port 1569
+ Date: 2026-11-02
+================================================================
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
+----------------------------------------------------------------
+DROP TABLE IF EXISTS employees, employee_skills, products, product_reviews, sales;
+psql:lab.sql:11: NOTICE:  table "employees" does not exist, skipping
+psql:lab.sql:11: NOTICE:  table "employee_skills" does not exist, skipping
+psql:lab.sql:11: NOTICE:  table "products" does not exist, skipping
+psql:lab.sql:11: NOTICE:  table "product_reviews" does not exist, skipping
+psql:lab.sql:11: NOTICE:  table "sales" does not exist, skipping
+DROP TABLE
+CREATE TABLE employees (
+    employee_id      SERIAL PRIMARY KEY,
+    first_name       VARCHAR(50),
+    last_name        VARCHAR(50),
+    department       VARCHAR(50),
+    salary           NUMERIC(10,2),
+    bonus            NUMERIC(10,2),
+    age              INT,
+    experience_years INT,
+    hire_date        DATE,
+    email            VARCHAR(100)
+);
+CREATE TABLE
+INSERT INTO employees (first_name, last_name, department, salary, bonus, age, experience_years, hire_date, email) VALUES
+('Aibek',  'Sharshenov',    'Engineering', 95000, 5000, 34, 10, '2018-03-01', 'aibek@corp.kg'),
+('Ainura', 'Toktomamatova', 'Engineering', 82000, NULL, 29,  6, '2021-06-15', 'ainura@corp.kg'),
+('Bakyt',  'Mamatov',       'Engineering', 64000, 2000, 25,  2, '2023-08-01', NULL),
+('Azamat', 'Uulu',          'Engineering', 120000, 9000, 45, 20, '2015-01-10', 'azamat@corp.kg'),
+('Bermet', 'Asanova',       'Marketing',   58000, NULL, 31,  7, '2020-02-20', 'bermet@corp.kg'),
+('Gulzat', 'Sultanova',     'Marketing',   47000, 1000, 24,  1, '2024-04-04', NULL),
+('Meerim', 'Bekova',        'HR',          52000, NULL, 38, 12, '2019-09-09', 'meerim@corp.kg'),
+('Nurlan', 'Isakov',        'Sales',       45000, 3000, 27,  3, '2023-02-01', 'nurlan@corp.kg'),
+('Aidai',  'Kadyrova',      'Sales',       71000, 6000, 41, 15, '2016-11-11', 'aidai@corp.kg'),
+('Tilek',  'Usubaliev',     'Sales',       39000, NULL, 23,  1, '2024-07-01', NULL),
+('Erlan',  'Abdyldaev',     'Sales',       56000, 2500, 52, 25, '2012-05-05', 'erlan@corp.kg'),
+('Kanykei','Osmonova',      'Sales',       48000, 1500, 30,  5, '2022-10-10', 'kanykei@corp.kg');
+INSERT 0 12
+CREATE TABLE employee_skills (
+    employee_id INT REFERENCES employees(employee_id),
+    skill_name  VARCHAR(50)
+);
+CREATE TABLE
+INSERT INTO employee_skills VALUES
+(1, 'SQL'), (1, 'Python'), (1, 'Docker'), (2, 'Java'), (2, 'SQL'),
+(4, 'Go'), (4, 'Kubernetes'), (4, 'SQL'), (8, 'Negotiation');
+INSERT 0 9
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,
+    name       VARCHAR(50),
+    category   VARCHAR(30),
+    price      NUMERIC(8,2)
+);
+CREATE TABLE
+INSERT INTO products (name, category, price) VALUES
+('Laptop', 'Electronics', 1200), ('Phone', 'Electronics', 800), ('Headphones', 'Electronics', 150),
+('Desk', 'Furniture', 300), ('Chair', 'Furniture', 180),
+('Notebook', 'Stationery', 3), ('Pen', 'Stationery', 1.5), ('Stapler', 'Stationery', 12);
+INSERT 0 8
+CREATE TABLE product_reviews (
+    product_id INT REFERENCES products(product_id),
+    rating     INT CHECK (rating BETWEEN 1 AND 5)
+);
+CREATE TABLE
+INSERT INTO product_reviews
+SELECT 1, r FROM unnest(ARRAY[5,5,4,5,4,5,4,4,5,5,4,5]) AS r;
+INSERT 0 12
+INSERT INTO product_reviews
+SELECT 2, r FROM unnest(ARRAY[4,4,3,5,4,3,4,4,4,4]) AS r;
+INSERT 0 10
+INSERT INTO product_reviews VALUES (4, 5), (4, 5), (4, 5);
+INSERT 0 3
+CREATE TABLE sales (
+    sale_id    SERIAL PRIMARY KEY,
+    department VARCHAR(50),
+    sale_date  DATE,
+    amount     NUMERIC(10,2)
+);
+CREATE TABLE
+INSERT INTO sales (department, sale_date, amount) VALUES
+('Retail', '2025-02-10', 1200), ('Retail', '2025-05-03',  800), ('Online', '2025-05-20', 2500),
+('Online', '2025-08-14', 3100), ('Retail', '2025-11-30', 1900), ('Online', '2025-12-24', 4200),
+('Retail', '2026-01-15', 1100), ('Online', '2026-03-03', 2800), ('Online', '2026-04-18', 3600),
+('Retail', '2026-07-07', 1500), ('Online', '2026-09-09', 5100);
+INSERT 0 11
+SELECT COUNT(*)                   AS total_employees,
+       COUNT(email)               AS employees_with_email,
+       COUNT(DISTINCT department) AS unique_departments
+FROM employees;
+ total_employees | employees_with_email | unique_departments 
+-----------------+----------------------+--------------------
+              12 |                    9 |                  4
+(1 row)
+
+SELECT SUM(salary)           AS total_salaries,
+       ROUND(AVG(salary), 2) AS average_salary,
+       MAX(salary)           AS highest_salary,
+       MIN(salary)           AS lowest_salary
+FROM employees;
+ total_salaries | average_salary | highest_salary | lowest_salary 
+----------------+----------------+----------------+---------------
+      777000.00 |       64750.00 |      120000.00 |      39000.00
+(1 row)
+
+SELECT department, SUM(amount) AS total_sales
+FROM sales GROUP BY department;
+ department | total_sales 
+------------+-------------
+ Online     |    21300.00
+ Retail     |     6500.00
+(2 rows)
+
+SELECT department, ROUND(AVG(age), 1) AS avg_age, MAX(hire_date) AS latest_hire
+FROM employees GROUP BY department ORDER BY department;
+ department  | avg_age | latest_hire 
+-------------+---------+-------------
+ Engineering |    33.3 | 2023-08-01
+ HR          |    38.0 | 2019-09-09
+ Marketing   |    27.5 | 2024-04-04
+ Sales       |    34.6 | 2024-07-01
+(4 rows)
+
+SELECT department, STRING_AGG(first_name, ', ') AS employee_names
+FROM employees GROUP BY department ORDER BY department;
+ department  |            employee_names            
+-------------+--------------------------------------
+ Engineering | Aibek, Ainura, Bakyt, Azamat
+ HR          | Meerim
+ Marketing   | Gulzat, Bermet
+ Sales       | Nurlan, Aidai, Tilek, Erlan, Kanykei
+(4 rows)
+
+SELECT employee_id, STRING_AGG(skill_name, ', ' ORDER BY skill_name) AS skills
+FROM employee_skills GROUP BY employee_id ORDER BY employee_id;
+ employee_id |       skills        
+-------------+---------------------
+           1 | Docker, Python, SQL
+           2 | Java, SQL
+           4 | Go, Kubernetes, SQL
+           8 | Negotiation
+(4 rows)
+
+SELECT department, ARRAY_AGG(salary ORDER BY salary) AS salary_array
+FROM employees GROUP BY department ORDER BY department;
+ department  |                  salary_array                  
+-------------+------------------------------------------------
+ Engineering | {64000.00,82000.00,95000.00,120000.00}
+ HR          | {52000.00}
+ Marketing   | {47000.00,58000.00}
+ Sales       | {39000.00,45000.00,48000.00,56000.00,71000.00}
+(4 rows)
+
+SELECT department, ARRAY_AGG(first_name ORDER BY last_name) AS employees
+FROM employees GROUP BY department ORDER BY department;
+ department  |             employees              
+-------------+------------------------------------
+ Engineering | {Bakyt,Aibek,Ainura,Azamat}
+ HR          | {Meerim}
+ Marketing   | {Bermet,Gulzat}
+ Sales       | {Erlan,Nurlan,Aidai,Kanykei,Tilek}
+(4 rows)
+
+SELECT department,
+       ROUND(STDDEV(salary), 2)   AS salary_std_dev,
+       ROUND(VARIANCE(salary), 2) AS salary_variance
+FROM employees GROUP BY department ORDER BY department;
+ department  | salary_std_dev | salary_variance 
+-------------+----------------+-----------------
+ Engineering |       23556.67 |    554916666.67
+ HR          |                |                
+ Marketing   |        7778.17 |     60500000.00
+ Sales       |       12357.18 |    152700000.00
+(4 rows)
+
+SELECT ROUND(CORR(experience_years, salary)::numeric, 3) AS experience_salary_correlation
+FROM employees;
+ experience_salary_correlation 
+-------------------------------
+                         0.490
+(1 row)
+
+SELECT category,
+       COUNT(*)             AS number_of_products,
+       SUM(price)           AS total_value,
+       ROUND(AVG(price), 2) AS average_price
+FROM products GROUP BY category ORDER BY category;
+  category   | number_of_products | total_value | average_price 
+-------------+--------------------+-------------+---------------
+ Electronics |                  3 |     2150.00 |        716.67
+ Furniture   |                  2 |      480.00 |        240.00
+ Stationery  |                  3 |       16.50 |          5.50
+(3 rows)
+
+SELECT EXTRACT(YEAR FROM sale_date)    AS year,
+       EXTRACT(QUARTER FROM sale_date) AS quarter,
+       COUNT(*)    AS total_sales,
+       SUM(amount) AS total_revenue
+FROM sales
+GROUP BY EXTRACT(YEAR FROM sale_date), EXTRACT(QUARTER FROM sale_date)
+ORDER BY year, quarter;
+ year | quarter | total_sales | total_revenue 
+------+---------+-------------+---------------
+ 2025 |       1 |           1 |       1200.00
+ 2025 |       2 |           2 |       3300.00
+ 2025 |       3 |           1 |       3100.00
+ 2025 |       4 |           2 |       6100.00
+ 2026 |       1 |           2 |       3900.00
+ 2026 |       2 |           1 |       3600.00
+ 2026 |       3 |           2 |       6600.00
+(7 rows)
+
+SELECT CASE
+           WHEN age < 30 THEN 'Under 30'
+           WHEN age BETWEEN 30 AND 50 THEN '30-50'
+           ELSE 'Over 50'
+       END AS age_group,
+       COUNT(*)              AS employee_count,
+       ROUND(AVG(salary), 2) AS avg_salary
+FROM employees
+GROUP BY 1
+ORDER BY 1;
+ age_group | employee_count | avg_salary 
+-----------+----------------+------------
+ 30-50     |              6 |   74000.00
+ Over 50   |              1 |   56000.00
+ Under 30  |              5 |   55400.00
+(3 rows)
+
+SELECT department, first_name, COUNT(*) FROM employees GROUP BY department;
+psql:lab.sql:171: ERROR:  column "employees.first_name" must appear in the GROUP BY clause or be used in an aggregate function
+LINE 1: SELECT department, first_name, COUNT(*) FROM employees GROUP...
+                           ^
+SELECT department, COUNT(*) AS employee_count
+FROM employees
+GROUP BY department
+HAVING COUNT(*) > 3;
+ department  | employee_count 
+-------------+----------------
+ Engineering |              4
+ Sales       |              5
+(2 rows)
+
+SELECT product_id, ROUND(AVG(rating), 2) AS avg_rating, COUNT(*) AS review_count
+FROM product_reviews
+GROUP BY product_id
+HAVING AVG(rating) > 4.0 AND COUNT(*) >= 10;
+ product_id | avg_rating | review_count 
+------------+------------+--------------
+          1 |       4.58 |           12
+(1 row)
+
+SELECT department, ROUND(AVG(salary), 2) AS avg_salary
+FROM employees
+WHERE hire_date >= '2018-01-01'
+GROUP BY department
+HAVING AVG(salary) > 50000
+ORDER BY avg_salary DESC;
+ department  | avg_salary 
+-------------+------------
+ Engineering |   80333.33
+ Marketing   |   52500.00
+ HR          |   52000.00
+(3 rows)
+
+SELECT department, ROUND(AVG(salary), 2) AS dept_avg_salary
+FROM employees GROUP BY department ORDER BY department;
+ department  | dept_avg_salary 
+-------------+-----------------
+ Engineering |        90250.00
+ HR          |        52000.00
+ Marketing   |        52500.00
+ Sales       |        51800.00
+(4 rows)
+
+SELECT employee_id, first_name, department, salary,
+       ROUND(AVG(salary) OVER (PARTITION BY department), 2) AS dept_avg_salary
+FROM employees
+ORDER BY department, salary DESC;
+ employee_id | first_name | department  |  salary   | dept_avg_salary 
+-------------+------------+-------------+-----------+-----------------
+           4 | Azamat     | Engineering | 120000.00 |        90250.00
+           1 | Aibek      | Engineering |  95000.00 |        90250.00
+           2 | Ainura     | Engineering |  82000.00 |        90250.00
+           3 | Bakyt      | Engineering |  64000.00 |        90250.00
+           7 | Meerim     | HR          |  52000.00 |        52000.00
+           5 | Bermet     | Marketing   |  58000.00 |        52500.00
+           6 | Gulzat     | Marketing   |  47000.00 |        52500.00
+           9 | Aidai      | Sales       |  71000.00 |        51800.00
+          11 | Erlan      | Sales       |  56000.00 |        51800.00
+          12 | Kanykei    | Sales       |  48000.00 |        51800.00
+           8 | Nurlan     | Sales       |  45000.00 |        51800.00
+          10 | Tilek      | Sales       |  39000.00 |        51800.00
+(12 rows)
+
+SELECT COUNT(*)                AS total_rows,
+       COUNT(email)            AS non_null_emails,
+       COUNT(*) - COUNT(email) AS null_emails
+FROM employees;
+ total_rows | non_null_emails | null_emails 
+------------+-----------------+-------------
+         12 |               9 |           3
+(1 row)
+
+SELECT SUM(bonus)                        AS total_bonus,
+       ROUND(AVG(bonus), 2)              AS avg_bonus,
+       COUNT(bonus)                      AS employees_with_bonus,
+       ROUND(AVG(COALESCE(bonus, 0)), 2) AS avg_bonus_counting_nulls_as_0
+FROM employees;
+ total_bonus | avg_bonus | employees_with_bonus | avg_bonus_counting_nulls_as_0 
+-------------+-----------+----------------------+-------------------------------
+    30000.00 |   3750.00 |                    8 |                       2500.00
+(1 row)
+
+SELECT department,
+       COUNT(*)                 AS employee_count,
+       MIN(salary)              AS min_salary,
+       MAX(salary)              AS max_salary,
+       ROUND(AVG(salary), 2)    AS avg_salary,
+       ROUND(STDDEV(salary), 2) AS salary_std_dev
+FROM employees
+GROUP BY department
+ORDER BY avg_salary DESC;
+ department  | employee_count | min_salary | max_salary | avg_salary | salary_std_dev 
+-------------+----------------+------------+------------+------------+----------------
+ Engineering |              4 |   64000.00 |  120000.00 |   90250.00 |       23556.67
+ Marketing   |              2 |   47000.00 |   58000.00 |   52500.00 |        7778.17
+ HR          |              1 |   52000.00 |   52000.00 |   52000.00 |               
+ Sales       |              5 |   39000.00 |   71000.00 |   51800.00 |       12357.18
+(4 rows)
+
+SELECT department,
+       COUNT(*)                                       AS total_employees,
+       COUNT(CASE WHEN salary > 50000 THEN 1 END)     AS high_earners,
+       COUNT(*) FILTER (WHERE hire_date > '2023-01-01') AS recent_hires
+FROM employees
+GROUP BY department ORDER BY department;
+ department  | total_employees | high_earners | recent_hires 
+-------------+-----------------+--------------+--------------
+ Engineering |               4 |            4 |            1
+ HR          |               1 |            1 |            0
+ Marketing   |               2 |            1 |            1
+ Sales       |               5 |            2 |            2
+(4 rows)
+
+SELECT department,
+       COUNT(*) AS dept_count,
+       ROUND(COUNT(*)::numeric / (SELECT COUNT(*) FROM employees) * 100, 1) AS percentage
+FROM employees
+GROUP BY department
+ORDER BY percentage DESC;
+ department  | dept_count | percentage 
+-------------+------------+------------
+ Sales       |          5 |       41.7
+ Engineering |          4 |       33.3
+ Marketing   |          2 |       16.7
+ HR          |          1 |        8.3
+(4 rows)
+
+DROP TABLE employee_skills, employees, product_reviews, products, sales;
+DROP TABLE
