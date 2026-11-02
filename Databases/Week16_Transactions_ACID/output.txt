@@ -1,0 +1,613 @@
+================================================================
+ Week 16: Transactions and ACID Properties -- real psql transcript
+ PostgreSQL: 18.6 (Windows 10, EDB installer)  port 1569
+ Date: 2026-11-02
+================================================================
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
+----------------------------------------------------------------
+DROP TABLE IF EXISTS order_items, orders, customers, accounts, products, logs, inventory;
+psql:lab.sql:13: NOTICE:  table "order_items" does not exist, skipping
+psql:lab.sql:13: NOTICE:  table "orders" does not exist, skipping
+psql:lab.sql:13: NOTICE:  table "customers" does not exist, skipping
+psql:lab.sql:13: NOTICE:  table "accounts" does not exist, skipping
+psql:lab.sql:13: NOTICE:  table "products" does not exist, skipping
+psql:lab.sql:13: NOTICE:  table "logs" does not exist, skipping
+psql:lab.sql:13: NOTICE:  table "inventory" does not exist, skipping
+DROP TABLE
+CREATE EXTENSION IF NOT EXISTS dblink;
+CREATE EXTENSION
+SELECT dblink_disconnect(unnest(dblink_get_connections()));
+ dblink_disconnect 
+-------------------
+(0 rows)
+
+CREATE TABLE accounts (
+    account_id INT PRIMARY KEY,
+    owner      VARCHAR(50),
+    balance    NUMERIC(12,2) NOT NULL CHECK (balance >= 0)   -- no overdrafts
+);
+CREATE TABLE
+INSERT INTO accounts VALUES (1, 'Aibek', 1000.00), (2, 'Ainura', 500.00), (3, 'Bakyt', 2000.00);
+INSERT 0 3
+BEGIN;
+BEGIN
+UPDATE accounts SET balance = balance - 100 WHERE account_id = 1;
+UPDATE 1
+UPDATE accounts SET balance = balance + 100 WHERE account_id = 2;
+UPDATE 1
+COMMIT;
+COMMIT
+SELECT * FROM accounts ORDER BY account_id;
+ account_id | owner  | balance 
+------------+--------+---------
+          1 | Aibek  |  900.00
+          2 | Ainura |  600.00
+          3 | Bakyt  | 2000.00
+(3 rows)
+
+BEGIN TRANSACTION;
+BEGIN
+UPDATE accounts SET balance = balance - 100 WHERE account_id = 1;
+UPDATE 1
+UPDATE accounts SET balance = balance + 100 WHERE account_id = 2;
+UPDATE 1
+SELECT * FROM accounts ORDER BY account_id;
+ account_id | owner  | balance 
+------------+--------+---------
+          1 | Aibek  |  800.00
+          2 | Ainura |  700.00
+          3 | Bakyt  | 2000.00
+(3 rows)
+
+ROLLBACK;
+ROLLBACK
+SELECT * FROM accounts ORDER BY account_id;
+ account_id | owner  | balance 
+------------+--------+---------
+          1 | Aibek  |  900.00
+          2 | Ainura |  600.00
+          3 | Bakyt  | 2000.00
+(3 rows)
+
+START TRANSACTION;
+START TRANSACTION
+SELECT balance FROM accounts WHERE account_id = 1;
+ balance 
+---------
+  900.00
+(1 row)
+
+UPDATE accounts SET balance = balance - 500 WHERE account_id = 1;
+UPDATE 1
+UPDATE accounts SET balance = balance + 500 WHERE account_id = 2;
+UPDATE 1
+COMMIT;
+COMMIT
+SELECT * FROM accounts ORDER BY account_id;
+ account_id | owner  | balance 
+------------+--------+---------
+          1 | Aibek  |  400.00
+          2 | Ainura | 1100.00
+          3 | Bakyt  | 2000.00
+(3 rows)
+
+CREATE TABLE customers (customer_id SERIAL PRIMARY KEY, name VARCHAR(50), email VARCHAR(100));
+CREATE TABLE
+CREATE TABLE orders    (id SERIAL PRIMARY KEY, customer_id INT REFERENCES customers(customer_id), total NUMERIC(10,2));
+CREATE TABLE
+CREATE TABLE inventory (product_id INT PRIMARY KEY, stock INT CHECK (stock >= 0));
+CREATE TABLE
+CREATE TABLE order_items (order_id INT REFERENCES orders(id), product_id INT REFERENCES inventory(product_id), quantity INT);
+CREATE TABLE
+INSERT INTO customers (name, email) VALUES ('Aibek', 'aibek@mail.kg');
+INSERT 0 1
+INSERT INTO inventory VALUES (101, 1);
+INSERT 0 1
+BEGIN;
+BEGIN
+INSERT INTO orders (customer_id, total) VALUES (1, 250.00);
+INSERT 0 1
+INSERT INTO order_items (order_id, product_id, quantity) VALUES (1, 101, 2);
+INSERT 0 1
+UPDATE inventory SET stock = stock - 2 WHERE product_id = 101;
+psql:lab.sql:68: ERROR:  new row for relation "inventory" violates check constraint "inventory_stock_check"
+DETAIL:  Failing row contains (101, -1).
+SELECT * FROM orders;
+psql:lab.sql:69: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+COMMIT;
+ROLLBACK
+SELECT count(*) AS orders_saved FROM orders;
+ orders_saved 
+--------------
+            0
+(1 row)
+
+SELECT * FROM inventory;
+ product_id | stock 
+------------+-------
+        101 |     1
+(1 row)
+
+INSERT INTO orders (customer_id, total) VALUES (1, 250.00);
+INSERT 0 1
+INSERT INTO order_items (order_id, product_id, quantity) VALUES (currval('orders_id_seq'), 101, 2);
+INSERT 0 1
+UPDATE inventory SET stock = stock - 2 WHERE product_id = 101;
+psql:lab.sql:78: ERROR:  new row for relation "inventory" violates check constraint "inventory_stock_check"
+DETAIL:  Failing row contains (101, -1).
+SELECT count(*) AS orders_saved_without_transaction FROM orders;
+ orders_saved_without_transaction 
+----------------------------------
+                                1
+(1 row)
+
+TRUNCATE order_items, orders RESTART IDENTITY;
+TRUNCATE TABLE
+BEGIN;
+BEGIN
+UPDATE accounts SET balance = balance + 5000 WHERE account_id = 2;
+UPDATE 1
+UPDATE accounts SET balance = balance - 5000 WHERE account_id = 1;
+psql:lab.sql:89: ERROR:  new row for relation "accounts" violates check constraint "accounts_balance_check"
+DETAIL:  Failing row contains (1, Aibek, -4600.00).
+COMMIT;
+ROLLBACK
+SELECT * FROM accounts ORDER BY account_id;
+ account_id | owner  | balance 
+------------+--------+---------
+          1 | Aibek  |  400.00
+          2 | Ainura | 1100.00
+          3 | Bakyt  | 2000.00
+(3 rows)
+
+BEGIN;
+BEGIN
+INSERT INTO customers (name, email) VALUES ('John Doe', 'john@email.com');
+INSERT 0 1
+INSERT INTO orders (customer_id, total) VALUES (currval('customers_customer_id_seq'), 100.00);
+INSERT 0 1
+COMMIT;
+COMMIT
+SELECT o.id, c.name, o.total FROM orders o JOIN customers c USING (customer_id);
+ id |   name   | total  
+----+----------+--------
+  1 | John Doe | 100.00
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+SELECT dblink_get_connections() AS open_sessions;
+ open_sessions 
+---------------
+ {third,other}
+(1 row)
+
+SELECT dblink_exec('other', 'BEGIN');
+ dblink_exec 
+-------------
+ BEGIN
+(1 row)
+
+SELECT dblink_exec('other', 'UPDATE accounts SET balance = 0 WHERE account_id = 3');
+ dblink_exec 
+-------------
+ UPDATE 1
+(1 row)
+
+BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN
+SELECT balance AS we_still_see FROM accounts WHERE account_id = 3;
+ we_still_see 
+--------------
+      2000.00
+(1 row)
+
+COMMIT;
+COMMIT
+SELECT dblink_exec('other', 'ROLLBACK');
+ dblink_exec 
+-------------
+ ROLLBACK
+(1 row)
+
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN
+SELECT balance AS first_read FROM accounts WHERE account_id = 3;
+ first_read 
+------------
+    2000.00
+(1 row)
+
+SELECT dblink_exec('other', 'UPDATE accounts SET balance = balance + 1 WHERE account_id = 3');
+ dblink_exec 
+-------------
+ UPDATE 1
+(1 row)
+
+SELECT balance AS second_read FROM accounts WHERE account_id = 3;
+ second_read 
+-------------
+     2001.00
+(1 row)
+
+COMMIT;
+COMMIT
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN
+SELECT balance AS first_read FROM accounts WHERE account_id = 3;
+ first_read 
+------------
+    2001.00
+(1 row)
+
+SELECT dblink_exec('other', 'UPDATE accounts SET balance = balance + 1 WHERE account_id = 3');
+ dblink_exec 
+-------------
+ UPDATE 1
+(1 row)
+
+SELECT balance AS second_read FROM accounts WHERE account_id = 3;
+ second_read 
+-------------
+     2001.00
+(1 row)
+
+UPDATE accounts SET balance = balance - 10 WHERE account_id = 3;
+psql:lab.sql:143: ERROR:  could not serialize access due to concurrent update
+ROLLBACK;
+ROLLBACK
+SELECT balance AS after_rollback FROM accounts WHERE account_id = 3;
+ after_rollback 
+----------------
+        2002.00
+(1 row)
+
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN
+SELECT count(*) AS rich_accounts FROM accounts WHERE balance > 1000;
+ rich_accounts 
+---------------
+             2
+(1 row)
+
+SELECT dblink_exec('other', 'INSERT INTO accounts VALUES (4, ''Gulzat'', 3000)');
+ dblink_exec 
+-------------
+ INSERT 0 1
+(1 row)
+
+SELECT count(*) AS rich_accounts FROM accounts WHERE balance > 1000;
+ rich_accounts 
+---------------
+             3
+(1 row)
+
+COMMIT;
+COMMIT
+DELETE FROM accounts WHERE account_id = 4;
+DELETE 1
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN
+SELECT count(*) AS rich_accounts FROM accounts WHERE balance > 1000;
+ rich_accounts 
+---------------
+             2
+(1 row)
+
+SELECT dblink_exec('other', 'INSERT INTO accounts VALUES (4, ''Gulzat'', 3000)');
+ dblink_exec 
+-------------
+ INSERT 0 1
+(1 row)
+
+SELECT count(*) AS rich_accounts FROM accounts WHERE balance > 1000;
+ rich_accounts 
+---------------
+             2
+(1 row)
+
+COMMIT;
+COMMIT
+DELETE FROM accounts WHERE account_id = 4;
+DELETE 1
+SELECT * FROM accounts WHERE account_id IN (1, 2) ORDER BY account_id;
+ account_id | owner  | balance 
+------------+--------+---------
+          1 | Aibek  |  400.00
+          2 | Ainura | 1100.00
+(2 rows)
+
+BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN
+SELECT sum(balance) AS seen_by_us FROM accounts WHERE account_id IN (1, 2);
+ seen_by_us 
+------------
+    1500.00
+(1 row)
+
+SELECT dblink_exec('other', 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+ dblink_exec 
+-------------
+ BEGIN
+(1 row)
+
+SELECT * FROM dblink('other', 'SELECT sum(balance) FROM accounts WHERE account_id IN (1, 2)') AS t(seen_by_other numeric);
+ seen_by_other 
+---------------
+       1500.00
+(1 row)
+
+SELECT dblink_exec('other', 'UPDATE accounts SET balance = balance - 900 WHERE account_id = 2');
+ dblink_exec 
+-------------
+ UPDATE 1
+(1 row)
+
+SELECT dblink_exec('other', 'COMMIT');
+ dblink_exec 
+-------------
+ COMMIT
+(1 row)
+
+SELECT sum(balance) AS still_seen_by_us FROM accounts WHERE account_id IN (1, 2);
+ still_seen_by_us 
+------------------
+          1500.00
+(1 row)
+
+UPDATE accounts SET balance = balance - 300 WHERE account_id = 1;
+psql:lab.sql:178: ERROR:  could not serialize access due to read/write dependencies among transactions
+DETAIL:  Reason code: Canceled on identification as a pivot, during write.
+HINT:  The transaction might succeed if retried.
+COMMIT;
+ROLLBACK
+SELECT * FROM accounts WHERE account_id IN (1, 2) ORDER BY account_id;
+ account_id | owner  | balance 
+------------+--------+---------
+          1 | Aibek  |  400.00
+          2 | Ainura |  200.00
+(2 rows)
+
+UPDATE accounts SET balance = balance + 900 WHERE account_id = 2;
+UPDATE 1
+SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET
+SHOW default_transaction_isolation;
+ default_transaction_isolation 
+-------------------------------
+ repeatable read
+(1 row)
+
+SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET
+BEGIN;
+BEGIN
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET
+SHOW transaction_isolation;
+ transaction_isolation 
+-----------------------
+ repeatable read
+(1 row)
+
+COMMIT;
+COMMIT
+SHOW synchronous_commit;
+ synchronous_commit 
+--------------------
+ on
+(1 row)
+
+SHOW fsync;
+ fsync 
+-------
+ on
+(1 row)
+
+SELECT pg_current_wal_lsn() AS wal_position_before;
+ wal_position_before 
+---------------------
+ 0/1107AE48
+(1 row)
+
+BEGIN;
+BEGIN
+UPDATE accounts SET balance = balance + 0.01 WHERE account_id = 3;
+UPDATE 1
+COMMIT;
+COMMIT
+SELECT pg_current_wal_lsn() AS wal_position_after;
+ wal_position_after 
+--------------------
+ 0/1107AEC0
+(1 row)
+
+SELECT balance AS committed_balance FROM accounts WHERE account_id = 3;
+ committed_balance 
+-------------------
+           2002.01
+(1 row)
+
+TRUNCATE customers, orders, order_items RESTART IDENTITY;
+TRUNCATE TABLE
+BEGIN;
+BEGIN
+INSERT INTO customers (name, email) VALUES ('Alice', 'alice@email.com');
+INSERT 0 1
+SAVEPOINT after_customer_insert;
+SAVEPOINT
+INSERT INTO orders (customer_id, total) VALUES (1, 500.00);
+INSERT 0 1
+ROLLBACK TO SAVEPOINT after_customer_insert;
+ROLLBACK
+INSERT INTO orders (customer_id, total) VALUES (1, 300.00);
+INSERT 0 1
+COMMIT;
+COMMIT
+SELECT * FROM customers;
+ customer_id | name  |      email      
+-------------+-------+-----------------
+           1 | Alice | alice@email.com
+(1 row)
+
+SELECT * FROM orders;
+ id | customer_id | total  
+----+-------------+--------
+  2 |           1 | 300.00
+(1 row)
+
+CREATE TABLE products (id SERIAL PRIMARY KEY, name VARCHAR(50), price NUMERIC(10,2) CHECK (price > 0));
+CREATE TABLE
+BEGIN;
+BEGIN
+INSERT INTO products (name, price) VALUES ('Laptop', 999.99);
+INSERT 0 1
+SAVEPOINT sp1;
+SAVEPOINT
+INSERT INTO products (name, price) VALUES ('Mouse', 25.99);
+INSERT 0 1
+SAVEPOINT sp2;
+SAVEPOINT
+INSERT INTO products (name, price) VALUES ('Invalid Product', -50.00);
+psql:lab.sql:236: ERROR:  new row for relation "products" violates check constraint "products_price_check"
+DETAIL:  Failing row contains (3, Invalid Product, -50.00).
+ROLLBACK TO SAVEPOINT sp2;
+ROLLBACK
+INSERT INTO products (name, price) VALUES ('Keyboard', 79.99);
+INSERT 0 1
+COMMIT;
+COMMIT
+SELECT * FROM products ORDER BY id;
+ id |   name   | price  
+----+----------+--------
+  1 | Laptop   | 999.99
+  2 | Mouse    |  25.99
+  4 | Keyboard |  79.99
+(3 rows)
+
+CREATE TABLE logs (id SERIAL PRIMARY KEY, message TEXT, logged_at TIMESTAMPTZ DEFAULT now());
+CREATE TABLE
+BEGIN;
+BEGIN
+INSERT INTO logs (message) VALUES ('Starting process');
+INSERT 0 1
+SAVEPOINT process_start;
+SAVEPOINT
+INSERT INTO logs (message) VALUES ('Process completed');
+INSERT 0 1
+RELEASE SAVEPOINT process_start;
+RELEASE
+ROLLBACK TO SAVEPOINT process_start;
+psql:lab.sql:249: ERROR:  savepoint "process_start" does not exist
+ROLLBACK;
+ROLLBACK
+SELECT count(*) AS logs_after_rollback FROM logs;
+ logs_after_rollback 
+---------------------
+                   0
+(1 row)
+
+DO $$
+DECLARE
+    current_balance NUMERIC;
+BEGIN
+    SELECT balance INTO current_balance FROM accounts WHERE account_id = 2;
+    IF current_balance < 5000 THEN
+        RAISE EXCEPTION 'Insufficient funds: % < 5000', current_balance;
+    END IF;
+    UPDATE accounts SET balance = balance - 5000 WHERE account_id = 2;
+    UPDATE accounts SET balance = balance + 5000 WHERE account_id = 1;
+END $$;
+psql:lab.sql:270: ERROR:  Insufficient funds: 1100.00 < 5000
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
+DO $$
+BEGIN
+    UPDATE accounts SET balance = balance + 100 WHERE account_id = 1;
+    UPDATE accounts SET balance = balance - 99999 WHERE account_id = 2;   -- violates CHECK
+EXCEPTION
+    WHEN check_violation THEN
+        RAISE NOTICE 'Transfer failed, nothing was changed: %', SQLERRM;
+END $$;
+psql:lab.sql:279: NOTICE:  Transfer failed, nothing was changed: new row for relation "accounts" violates check constraint "accounts_balance_check"
+DO
+SELECT * FROM accounts ORDER BY account_id;
+ account_id | owner  | balance 
+------------+--------+---------
+          1 | Aibek  |  400.00
+          2 | Ainura | 1100.00
+          3 | Bakyt  | 2002.01
+(3 rows)
+
+SELECT dblink_exec('other', 'BEGIN');
+ dblink_exec 
+-------------
+ BEGIN
+(1 row)
+
+SELECT dblink_exec('other', 'UPDATE accounts SET balance = balance WHERE account_id = 1');
+ dblink_exec 
+-------------
+ UPDATE 1
+(1 row)
+
+SELECT dblink_send_query('third', 'UPDATE accounts SET balance = balance + 1 WHERE account_id = 1');
+ dblink_send_query 
+-------------------
+                 1
+(1 row)
+
+SELECT pg_sleep(0.5);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+SELECT blocked_activity.pid             AS blocked_pid,
+       blocked_activity.usename         AS blocked_user,
+       blocking.pid                     AS blocking_pid,
+       blocked_activity.query           AS blocked_statement
+FROM pg_stat_activity blocked_activity
+CROSS JOIN LATERAL unnest(pg_blocking_pids(blocked_activity.pid)) AS blocking(pid)
+WHERE blocked_activity.datname = current_database();
+ blocked_pid | blocked_user | blocking_pid |                       blocked_statement                        
+-------------+--------------+--------------+----------------------------------------------------------------
+        8468 | ulan         |         2360 | UPDATE accounts SET balance = balance + 1 WHERE account_id = 1
+(1 row)
+
+SELECT dblink_exec('other', 'COMMIT');
+ dblink_exec 
+-------------
+ COMMIT
+(1 row)
+
+SELECT * FROM dblink_get_result('third') AS t(result text);
+  result  
+----------
+ UPDATE 1
+(1 row)
+
+SELECT dblink_disconnect('third');
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+SELECT dblink_disconnect('other');
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+DROP TABLE order_items, orders, customers, accounts, products, logs, inventory;
+DROP TABLE
+DROP EXTENSION dblink;
+DROP EXTENSION
