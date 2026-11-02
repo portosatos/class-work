@@ -1,0 +1,368 @@
+================================================================
+ Week 12: Querying Data -- real psql transcript
+ PostgreSQL: 18.6 (Windows 10, EDB installer)  port 1569
+ Date: 2026-11-02
+================================================================
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
+----------------------------------------------------------------
+DROP TABLE IF EXISTS sales, employees, departments, products, customers, users;
+psql:lab.sql:10: NOTICE:  table "sales" does not exist, skipping
+psql:lab.sql:10: NOTICE:  table "employees" does not exist, skipping
+psql:lab.sql:10: NOTICE:  table "departments" does not exist, skipping
+psql:lab.sql:10: NOTICE:  table "products" does not exist, skipping
+psql:lab.sql:10: NOTICE:  table "customers" does not exist, skipping
+psql:lab.sql:10: NOTICE:  table "users" does not exist, skipping
+DROP TABLE
+CREATE TABLE departments (
+    department_id INT PRIMARY KEY,
+    name          VARCHAR(50)
+);
+CREATE TABLE
+INSERT INTO departments VALUES
+(1, 'Sales'), (2, 'Engineering'), (3, 'Marketing'), (4, 'HR'), (5, 'Finance');
+INSERT 0 5
+CREATE TABLE employees (
+    id            SERIAL PRIMARY KEY,
+    name          VARCHAR(50) NOT NULL,
+    department    VARCHAR(50),
+    department_id INT REFERENCES departments(department_id),
+    salary        NUMERIC(10,2),
+    hire_date     DATE,
+    phone         VARCHAR(20)
+);
+CREATE TABLE
+INSERT INTO employees (name, department, department_id, salary, hire_date, phone) VALUES
+('Aibek',   'Sales',       1,  52000, '2021-03-15', '0555-100100'),
+('Ainura',  'Engineering', 2,  98000, '2019-07-01', NULL),
+('Bakyt',   'Engineering', 2,  76000, '2022-01-10', '0700-200200'),
+('Bermet',  'Marketing',   3,  61000, '2020-11-20', NULL),
+('Gulzat',  'Sales',       1,  47000, '2023-05-05', '0777-300300'),
+('Azamat',  'Engineering', 2, 120000, '2017-02-14', '0555-400400'),
+('Meerim',  'HR',          4,  55000, '2021-09-01', NULL),
+('Nurlan',  'Finance',     5, 105000, '2018-04-30', '0700-500500'),
+('Aidai',   'Sales',       1,  83000, '2019-12-12', '0777-600600');
+INSERT 0 9
+CREATE TABLE sales (
+    sale_id     SERIAL PRIMARY KEY,
+    employee_id INT REFERENCES employees(id),
+    amount      NUMERIC(10,2),
+    sale_date   DATE
+);
+CREATE TABLE
+INSERT INTO sales (employee_id, amount, sale_date) VALUES
+(1,  800, '2026-09-01'), (1, 1500, '2026-09-15'), (5,  300, '2026-09-20'),
+(9, 2500, '2026-10-02'), (9,  900, '2026-10-10'), (5, 1200, '2026-10-21');
+INSERT 0 6
+CREATE TABLE products (
+    product_id   SERIAL PRIMARY KEY,
+    product_name VARCHAR(50),
+    price        NUMERIC(8,2)
+);
+CREATE TABLE
+INSERT INTO products (product_name, price) VALUES
+('Strawberry jam', 12.50), ('Blueberry muffin', 24.00), ('Raspberry tart', 35.90),
+('Apple juice', 8.00), ('Cheesecake', 49.99), ('Chocolate cake', 55.00),
+('Blackberry pie', 20.00);
+INSERT 0 7
+CREATE TABLE customers (
+    customer_id   SERIAL PRIMARY KEY,
+    customer_name VARCHAR(50)
+);
+CREATE TABLE
+INSERT INTO customers (customer_name) VALUES
+('Brad'), ('Brandon'), ('Bryan'), ('Abraham'), ('bradley'), ('Alice');
+INSERT 0 6
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    email   VARCHAR(100)
+);
+CREATE TABLE
+INSERT INTO users (email) VALUES
+('aibek@gmail.com'), ('AINURA@GMAIL.COM'), ('bakyt@mail.ru'),
+('broken-email@'), ('meerim@alatoo.edu.kg'), ('no at sign.com');
+INSERT 0 6
+SELECT * FROM employees;
+ id |  name  | department  | department_id |  salary   | hire_date  |    phone    
+----+--------+-------------+---------------+-----------+------------+-------------
+  1 | Aibek  | Sales       |             1 |  52000.00 | 2021-03-15 | 0555-100100
+  2 | Ainura | Engineering |             2 |  98000.00 | 2019-07-01 | 
+  3 | Bakyt  | Engineering |             2 |  76000.00 | 2022-01-10 | 0700-200200
+  4 | Bermet | Marketing   |             3 |  61000.00 | 2020-11-20 | 
+  5 | Gulzat | Sales       |             1 |  47000.00 | 2023-05-05 | 0777-300300
+  6 | Azamat | Engineering |             2 | 120000.00 | 2017-02-14 | 0555-400400
+  7 | Meerim | HR          |             4 |  55000.00 | 2021-09-01 | 
+  8 | Nurlan | Finance     |             5 | 105000.00 | 2018-04-30 | 0700-500500
+  9 | Aidai  | Sales       |             1 |  83000.00 | 2019-12-12 | 0777-600600
+(9 rows)
+
+SELECT name, department FROM employees;
+  name  | department  
+--------+-------------
+ Aibek  | Sales
+ Ainura | Engineering
+ Bakyt  | Engineering
+ Bermet | Marketing
+ Gulzat | Sales
+ Azamat | Engineering
+ Meerim | HR
+ Nurlan | Finance
+ Aidai  | Sales
+(9 rows)
+
+SELECT name, salary, salary * 0.10 AS potential_bonus
+FROM employees;
+  name  |  salary   | potential_bonus 
+--------+-----------+-----------------
+ Aibek  |  52000.00 |       5200.0000
+ Ainura |  98000.00 |       9800.0000
+ Bakyt  |  76000.00 |       7600.0000
+ Bermet |  61000.00 |       6100.0000
+ Gulzat |  47000.00 |       4700.0000
+ Azamat | 120000.00 |      12000.0000
+ Meerim |  55000.00 |       5500.0000
+ Nurlan | 105000.00 |      10500.0000
+ Aidai  |  83000.00 |       8300.0000
+(9 rows)
+
+SELECT DISTINCT department FROM employees ORDER BY department;
+ department  
+-------------
+ Engineering
+ Finance
+ HR
+ Marketing
+ Sales
+(5 rows)
+
+SELECT name, salary FROM employees ORDER BY salary DESC LIMIT 3;
+  name  |  salary   
+--------+-----------
+ Azamat | 120000.00
+ Nurlan | 105000.00
+ Ainura |  98000.00
+(3 rows)
+
+SELECT name, salary FROM employees WHERE department = 'Sales';
+  name  |  salary  
+--------+----------
+ Aibek  | 52000.00
+ Gulzat | 47000.00
+ Aidai  | 83000.00
+(3 rows)
+
+SELECT name FROM employees WHERE salary > 75000 AND department = 'Engineering';
+  name  
+--------
+ Ainura
+ Bakyt
+ Azamat
+(3 rows)
+
+SELECT name, department FROM employees
+WHERE department = 'HR' OR department = 'Finance';
+  name  | department 
+--------+------------
+ Meerim | HR
+ Nurlan | Finance
+(2 rows)
+
+SELECT name, department FROM employees WHERE NOT department = 'Engineering';
+  name  | department 
+--------+------------
+ Aibek  | Sales
+ Bermet | Marketing
+ Gulzat | Sales
+ Meerim | HR
+ Nurlan | Finance
+ Aidai  | Sales
+(6 rows)
+
+SELECT name, department FROM employees WHERE department <> 'Sales';
+  name  | department  
+--------+-------------
+ Ainura | Engineering
+ Bakyt  | Engineering
+ Bermet | Marketing
+ Azamat | Engineering
+ Meerim | HR
+ Nurlan | Finance
+(6 rows)
+
+SELECT product_name, price FROM products WHERE price BETWEEN 20 AND 50;
+   product_name   | price 
+------------------+-------
+ Blueberry muffin | 24.00
+ Raspberry tart   | 35.90
+ Cheesecake       | 49.99
+ Blackberry pie   | 20.00
+(4 rows)
+
+SELECT name FROM employees WHERE phone = NULL;
+ name 
+------
+(0 rows)
+
+SELECT name FROM employees WHERE phone IS NULL;
+  name  
+--------
+ Ainura
+ Bermet
+ Meerim
+(3 rows)
+
+SELECT count(*) AS with_phone FROM employees WHERE phone IS NOT NULL;
+ with_phone 
+------------
+          6
+(1 row)
+
+SELECT customer_name FROM customers WHERE customer_name LIKE 'Bra%';
+ customer_name 
+---------------
+ Brad
+ Brandon
+(2 rows)
+
+SELECT customer_name FROM customers WHERE customer_name ILIKE 'bra%';
+ customer_name 
+---------------
+ Brad
+ Brandon
+ bradley
+(3 rows)
+
+SELECT product_name FROM products WHERE product_name LIKE '%berry%';
+   product_name   
+------------------
+ Strawberry jam
+ Blueberry muffin
+ Raspberry tart
+ Blackberry pie
+(4 rows)
+
+SELECT customer_name FROM customers WHERE customer_name LIKE 'Br_an%';
+ customer_name 
+---------------
+ Bryan
+(1 row)
+
+SELECT email FROM users WHERE email ILIKE '%@gmail.com';
+      email       
+------------------
+ aibek@gmail.com
+ AINURA@GMAIL.COM
+(2 rows)
+
+SELECT name FROM employees WHERE name ~ '^[AB]';
+  name  
+--------
+ Aibek
+ Ainura
+ Bakyt
+ Bermet
+ Azamat
+ Aidai
+(6 rows)
+
+SELECT name FROM employees WHERE name ~* '^a.*k$';
+ name  
+-------
+ Aibek
+(1 row)
+
+SELECT email,
+       email ~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$' AS looks_valid
+FROM users;
+        email         | looks_valid 
+----------------------+-------------
+ aibek@gmail.com      | t
+ AINURA@GMAIL.COM     | t
+ bakyt@mail.ru        | t
+ broken-email@        | f
+ meerim@alatoo.edu.kg | t
+ no at sign.com       | f
+(6 rows)
+
+SELECT email FROM users
+WHERE email !~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$';
+     email      
+----------------
+ broken-email@
+ no at sign.com
+(2 rows)
+
+SELECT name, department FROM employees WHERE department_id IN (3, 4, 5);
+  name  | department 
+--------+------------
+ Bermet | Marketing
+ Meerim | HR
+ Nurlan | Finance
+(3 rows)
+
+SELECT name FROM employees
+WHERE id IN (SELECT employee_id FROM sales WHERE amount > 1000);
+  name  
+--------
+ Aibek
+ Aidai
+ Gulzat
+(3 rows)
+
+SELECT name FROM employees e
+WHERE EXISTS (
+    SELECT 1 FROM sales s
+    WHERE s.employee_id = e.id AND s.amount > 1000
+);
+  name  
+--------
+ Aibek
+ Aidai
+ Gulzat
+(3 rows)
+
+SELECT name FROM employees e
+WHERE department = 'Sales'
+  AND NOT EXISTS (SELECT 1 FROM sales s WHERE s.employee_id = e.id);
+ name 
+------
+(0 rows)
+
+SELECT name, salary,
+    CASE
+        WHEN salary > 100000 THEN 'Senior'
+        WHEN salary BETWEEN 60000 AND 100000 THEN 'Mid-Level'
+        ELSE 'Junior'
+    END AS employee_level
+FROM employees
+ORDER BY salary DESC;
+  name  |  salary   | employee_level 
+--------+-----------+----------------
+ Azamat | 120000.00 | Senior
+ Nurlan | 105000.00 | Senior
+ Ainura |  98000.00 | Mid-Level
+ Aidai  |  83000.00 | Mid-Level
+ Bakyt  |  76000.00 | Mid-Level
+ Bermet |  61000.00 | Mid-Level
+ Meerim |  55000.00 | Junior
+ Aibek  |  52000.00 | Junior
+ Gulzat |  47000.00 | Junior
+(9 rows)
+
+WITH department_averages AS (
+    SELECT department, AVG(salary) AS avg_salary
+    FROM employees
+    GROUP BY department
+)
+SELECT e.name, e.salary, e.department, ROUND(da.avg_salary, 2) AS avg_salary
+FROM employees e
+JOIN department_averages da ON e.department = da.department
+WHERE e.salary > da.avg_salary;
+  name  |  salary   | department  | avg_salary 
+--------+-----------+-------------+------------
+ Azamat | 120000.00 | Engineering |   98000.00
+ Aidai  |  83000.00 | Sales       |   60666.67
+(2 rows)
+
+DROP TABLE sales, employees, departments, products, customers, users;
+DROP TABLE
