@@ -1,0 +1,483 @@
+================================================================
+ Week 15: Advanced Querying -- real psql transcript
+ PostgreSQL: 18.6 (Windows 10, EDB installer)  port 1569
+ Date: 2026-11-02
+================================================================
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
+----------------------------------------------------------------
+DROP TABLE IF EXISTS employees, orders, warehouse_1, warehouse_2,
+                     sales, pivoted_sales, tickets, big_orders;
+psql:lab.sql:12: NOTICE:  table "employees" does not exist, skipping
+psql:lab.sql:12: NOTICE:  table "orders" does not exist, skipping
+psql:lab.sql:12: NOTICE:  table "warehouse_1" does not exist, skipping
+psql:lab.sql:12: NOTICE:  table "warehouse_2" does not exist, skipping
+psql:lab.sql:12: NOTICE:  table "sales" does not exist, skipping
+psql:lab.sql:12: NOTICE:  table "pivoted_sales" does not exist, skipping
+psql:lab.sql:12: NOTICE:  table "tickets" does not exist, skipping
+psql:lab.sql:12: NOTICE:  table "big_orders" does not exist, skipping
+DROP TABLE
+CREATE TABLE employees (
+    employee_id SERIAL PRIMARY KEY,
+    first_name  VARCHAR(50),
+    last_name   VARCHAR(50),
+    department  VARCHAR(50),
+    salary      NUMERIC(10,2),
+    tenure      INT,                 -- years in the company
+    manager_id  INT REFERENCES employees(employee_id)
+);
+CREATE TABLE
+INSERT INTO employees (first_name, last_name, department, salary, tenure, manager_id) VALUES
+('Azamat', 'Uulu',          'Management',  150000, 12, NULL),   -- 1 CEO
+('Ainura', 'Toktomamatova', 'Engineering', 110000,  8, 1),      -- 2
+('Nurlan', 'Isakov',        'Sales',        90000,  6, 1),      -- 3
+('Bakyt',  'Mamatov',       'Engineering',  85000,  4, 2),      -- 4
+('Meerim', 'Bekova',        'Engineering',  85000,  3, 2),      -- 5
+('Aibek',  'Sharshenov',    'Engineering',  70000,  1, 4),      -- 6
+('Aidai',  'Kadyrova',      'Sales',        72000,  7, 3),      -- 7
+('Tilek',  'Usubaliev',     'Sales',        48000,  1, 3),      -- 8
+('Gulzat', 'Sultanova',     'Sales',        48000,  2, 7);
+INSERT 0 9
+CREATE TABLE orders (
+    order_id  SERIAL PRIMARY KEY,
+    region_id INT,
+    amount    NUMERIC(12,2),
+    status    VARCHAR(20),
+    order_date DATE
+);
+CREATE TABLE
+INSERT INTO orders (region_id, amount, status, order_date) VALUES
+(1, 600000, 'Low Priority',    '2026-10-01'),
+(1, 550000, 'High Priority',   '2026-10-02'),
+(2, 300000, 'Medium Priority', '2026-10-02'),
+(2, 200000, 'Shipped',         '2026-10-03'),
+(3, 900000, 'High Priority',   '2026-10-04'),
+(3, 400000, 'Low Priority',    '2026-10-05'),
+(4,  50000, 'Medium Priority', '2026-10-06');
+INSERT 0 7
+CREATE TABLE warehouse_1 (product_id INT, product_name VARCHAR(50), quantity INT);
+CREATE TABLE
+CREATE TABLE warehouse_2 (product_id INT, product_name VARCHAR(50), quantity INT);
+CREATE TABLE
+INSERT INTO warehouse_1 VALUES (1, 'Laptop', 0), (2, 'Mouse', 15), (3, 'Monitor', 0), (4, 'Keyboard', 7);
+INSERT 0 4
+INSERT INTO warehouse_2 VALUES (1, 'Laptop', 0), (3, 'Monitor', 4), (5, 'Webcam', 0), (4, 'Keyboard', 0);
+INSERT 0 4
+CREATE TABLE sales (product_name VARCHAR(50), year INT, sales_amount NUMERIC(10,2));
+CREATE TABLE
+INSERT INTO sales VALUES
+('Laptop', 2022, 120), ('Laptop', 2023, 150), ('Laptop', 2024, 210),
+('Mouse',  2022,  30), ('Mouse',  2023,  45),
+('Monitor',2023,  80), ('Monitor',2024,  95), ('Monitor', 2024, 15);
+INSERT 0 8
+SELECT first_name, last_name, salary
+FROM employees
+WHERE salary > (SELECT AVG(salary) FROM employees)
+ORDER BY salary DESC;
+ first_name |   last_name   |  salary   
+------------+---------------+-----------
+ Azamat     | Uulu          | 150000.00
+ Ainura     | Toktomamatova | 110000.00
+ Nurlan     | Isakov        |  90000.00
+ Bakyt      | Mamatov       |  85000.00
+ Meerim     | Bekova        |  85000.00
+(5 rows)
+
+SELECT first_name, department, salary
+FROM employees
+WHERE (department, salary) = (SELECT department, salary FROM employees WHERE first_name = 'Bakyt')
+  AND first_name <> 'Bakyt';
+ first_name | department  |  salary  
+------------+-------------+----------
+ Meerim     | Engineering | 85000.00
+(1 row)
+
+SELECT department, avg_salary
+FROM (SELECT department, ROUND(AVG(salary), 2) AS avg_salary
+      FROM employees GROUP BY department) AS dept
+WHERE avg_salary > 70000
+ORDER BY avg_salary DESC;
+ department  | avg_salary 
+-------------+------------
+ Management  |  150000.00
+ Engineering |   87500.00
+(2 rows)
+
+SELECT e.first_name, e.department, e.salary
+FROM employees e
+WHERE e.salary = (SELECT MAX(salary) FROM employees x WHERE x.department = e.department)
+ORDER BY e.department;
+ first_name | department  |  salary   
+------------+-------------+-----------
+ Ainura     | Engineering | 110000.00
+ Azamat     | Management  | 150000.00
+ Nurlan     | Sales       |  90000.00
+(3 rows)
+
+SELECT first_name, salary,
+       salary - (SELECT AVG(salary) FROM employees) AS diff_from_avg
+FROM employees ORDER BY diff_from_avg DESC LIMIT 3;
+ first_name |  salary   |   diff_from_avg    
+------------+-----------+--------------------
+ Azamat     | 150000.00 | 65777.777777777778
+ Ainura     | 110000.00 | 25777.777777777778
+ Nurlan     |  90000.00 |  5777.777777777778
+(3 rows)
+
+SELECT first_name FROM employees
+WHERE salary = (SELECT salary FROM employees WHERE department = 'Sales');
+psql:lab.sql:101: ERROR:  more than one row returned by a subquery used as an expression
+WITH regional_sales AS (
+    SELECT region_id, SUM(amount) AS total_sales
+    FROM orders
+    GROUP BY region_id
+)
+SELECT region_id, total_sales
+FROM regional_sales
+WHERE total_sales > 1000000
+ORDER BY region_id;
+ region_id | total_sales 
+-----------+-------------
+         1 |  1150000.00
+         3 |  1300000.00
+(2 rows)
+
+WITH regional_sales AS (
+    SELECT region_id, SUM(amount) AS total_sales FROM orders GROUP BY region_id
+), top_regions AS (
+    SELECT region_id FROM regional_sales
+    WHERE total_sales > (SELECT SUM(total_sales) / 10 FROM regional_sales)
+)
+SELECT region_id, COUNT(*) AS orders, SUM(amount) AS total
+FROM orders
+WHERE region_id IN (SELECT region_id FROM top_regions)
+GROUP BY region_id ORDER BY region_id;
+ region_id | orders |   total    
+-----------+--------+------------
+         1 |      2 | 1150000.00
+         2 |      2 |  500000.00
+         3 |      2 | 1300000.00
+(3 rows)
+
+WITH RECURSIVE org_chart AS (
+    -- anchor: the CEO
+    SELECT employee_id, first_name, last_name, manager_id
+    FROM employees
+    WHERE manager_id IS NULL
+    UNION ALL
+    -- recursive: everyone who reports to someone already found
+    SELECT e.employee_id, e.first_name, e.last_name, e.manager_id
+    FROM employees e
+    INNER JOIN org_chart oc ON e.manager_id = oc.employee_id
+)
+SELECT * FROM org_chart;
+ employee_id | first_name |   last_name   | manager_id 
+-------------+------------+---------------+------------
+           1 | Azamat     | Uulu          |           
+           2 | Ainura     | Toktomamatova |          1
+           3 | Nurlan     | Isakov        |          1
+           4 | Bakyt      | Mamatov       |          2
+           5 | Meerim     | Bekova        |          2
+           7 | Aidai      | Kadyrova      |          3
+           8 | Tilek      | Usubaliev     |          3
+           6 | Aibek      | Sharshenov    |          4
+           9 | Gulzat     | Sultanova     |          7
+(9 rows)
+
+WITH RECURSIVE org_chart AS (
+    SELECT employee_id, first_name, 1 AS level, first_name::text AS path
+    FROM employees WHERE manager_id IS NULL
+    UNION ALL
+    SELECT e.employee_id, e.first_name, oc.level + 1, oc.path || ' > ' || e.first_name
+    FROM employees e JOIN org_chart oc ON e.manager_id = oc.employee_id
+)
+SELECT repeat('    ', level - 1) || first_name AS employee, level, path
+FROM org_chart
+ORDER BY path;
+      employee      | level |               path               
+--------------------+-------+----------------------------------
+ Azamat             |     1 | Azamat
+     Ainura         |     2 | Azamat > Ainura
+         Bakyt      |     3 | Azamat > Ainura > Bakyt
+             Aibek  |     4 | Azamat > Ainura > Bakyt > Aibek
+         Meerim     |     3 | Azamat > Ainura > Meerim
+     Nurlan         |     2 | Azamat > Nurlan
+         Aidai      |     3 | Azamat > Nurlan > Aidai
+             Gulzat |     4 | Azamat > Nurlan > Aidai > Gulzat
+         Tilek      |     3 | Azamat > Nurlan > Tilek
+(9 rows)
+
+WITH RECURSIVE n AS (
+    SELECT 1 AS i
+    UNION ALL
+    SELECT i + 1 FROM n WHERE i < 10
+)
+SELECT string_agg(i::text, ' ') AS one_to_ten FROM n;
+      one_to_ten      
+----------------------
+ 1 2 3 4 5 6 7 8 9 10
+(1 row)
+
+SELECT product_name FROM warehouse_1
+UNION
+SELECT product_name FROM warehouse_2
+ORDER BY product_name;
+ product_name 
+--------------
+ Keyboard
+ Laptop
+ Monitor
+ Mouse
+ Webcam
+(5 rows)
+
+SELECT product_name FROM warehouse_1
+UNION ALL
+SELECT product_name FROM warehouse_2
+ORDER BY product_name;
+ product_name 
+--------------
+ Keyboard
+ Keyboard
+ Laptop
+ Laptop
+ Monitor
+ Monitor
+ Mouse
+ Webcam
+(8 rows)
+
+SELECT product_id FROM warehouse_1 WHERE quantity = 0
+INTERSECT
+SELECT product_id FROM warehouse_2 WHERE quantity = 0;
+ product_id 
+------------
+          1
+(1 row)
+
+SELECT product_name FROM warehouse_1
+EXCEPT
+SELECT product_name FROM warehouse_2;
+ product_name 
+--------------
+ Mouse
+(1 row)
+
+SELECT first_name, department, salary,
+       ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) AS row_number,
+       RANK()       OVER (PARTITION BY department ORDER BY salary DESC) AS rank,
+       DENSE_RANK() OVER (PARTITION BY department ORDER BY salary DESC) AS dense_rank
+FROM employees
+WHERE department <> 'Management'
+ORDER BY department, salary DESC;
+ first_name | department  |  salary   | row_number | rank | dense_rank 
+------------+-------------+-----------+------------+------+------------
+ Ainura     | Engineering | 110000.00 |          1 |    1 |          1
+ Meerim     | Engineering |  85000.00 |          2 |    2 |          2
+ Bakyt      | Engineering |  85000.00 |          3 |    2 |          2
+ Aibek      | Engineering |  70000.00 |          4 |    4 |          3
+ Nurlan     | Sales       |  90000.00 |          1 |    1 |          1
+ Aidai      | Sales       |  72000.00 |          2 |    2 |          2
+ Tilek      | Sales       |  48000.00 |          3 |    3 |          3
+ Gulzat     | Sales       |  48000.00 |          4 |    3 |          3
+(8 rows)
+
+SELECT first_name, department, salary
+FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) AS rn
+      FROM employees) t
+WHERE rn = 1
+ORDER BY department;
+ first_name | department  |  salary   
+------------+-------------+-----------
+ Ainura     | Engineering | 110000.00
+ Azamat     | Management  | 150000.00
+ Nurlan     | Sales       |  90000.00
+(3 rows)
+
+SELECT order_id, order_date, amount,
+       LAG(amount)  OVER (ORDER BY order_id) AS previous_amount,
+       LEAD(amount) OVER (ORDER BY order_id) AS next_amount,
+       SUM(amount)  OVER (ORDER BY order_id) AS running_total
+FROM orders;
+ order_id | order_date |  amount   | previous_amount | next_amount | running_total 
+----------+------------+-----------+-----------------+-------------+---------------
+        1 | 2026-10-01 | 600000.00 |                 |   550000.00 |     600000.00
+        2 | 2026-10-02 | 550000.00 |       600000.00 |   300000.00 |    1150000.00
+        3 | 2026-10-02 | 300000.00 |       550000.00 |   200000.00 |    1450000.00
+        4 | 2026-10-03 | 200000.00 |       300000.00 |   900000.00 |    1650000.00
+        5 | 2026-10-04 | 900000.00 |       200000.00 |   400000.00 |    2550000.00
+        6 | 2026-10-05 | 400000.00 |       900000.00 |    50000.00 |    2950000.00
+        7 | 2026-10-06 |  50000.00 |       400000.00 |             |    3000000.00
+(7 rows)
+
+SELECT first_name, department, salary,
+       ROUND(100 * salary / SUM(salary) OVER (PARTITION BY department), 1) AS pct_of_dept
+FROM employees
+ORDER BY department, salary DESC;
+ first_name | department  |  salary   | pct_of_dept 
+------------+-------------+-----------+-------------
+ Ainura     | Engineering | 110000.00 |        31.4
+ Meerim     | Engineering |  85000.00 |        24.3
+ Bakyt      | Engineering |  85000.00 |        24.3
+ Aibek      | Engineering |  70000.00 |        20.0
+ Azamat     | Management  | 150000.00 |       100.0
+ Nurlan     | Sales       |  90000.00 |        34.9
+ Aidai      | Sales       |  72000.00 |        27.9
+ Tilek      | Sales       |  48000.00 |        18.6
+ Gulzat     | Sales       |  48000.00 |        18.6
+(9 rows)
+
+SELECT product_name,
+       SUM(CASE WHEN year = 2022 THEN sales_amount ELSE 0 END) AS year_2022,
+       SUM(CASE WHEN year = 2023 THEN sales_amount ELSE 0 END) AS year_2023,
+       SUM(CASE WHEN year = 2024 THEN sales_amount ELSE 0 END) AS year_2024
+FROM sales
+GROUP BY product_name
+ORDER BY product_name;
+ product_name | year_2022 | year_2023 | year_2024 
+--------------+-----------+-----------+-----------
+ Laptop       |    120.00 |    150.00 |    210.00
+ Monitor      |         0 |     80.00 |    110.00
+ Mouse        |     30.00 |     45.00 |         0
+(3 rows)
+
+CREATE EXTENSION IF NOT EXISTS tablefunc;
+CREATE EXTENSION
+SELECT * FROM crosstab(
+    $$ SELECT product_name, year, SUM(sales_amount) FROM sales
+       GROUP BY 1, 2 ORDER BY 1, 2 $$,
+    $$ VALUES (2022), (2023), (2024) $$
+) AS ct(product_name VARCHAR, year_2022 NUMERIC, year_2023 NUMERIC, year_2024 NUMERIC);
+ product_name | year_2022 | year_2023 | year_2024 
+--------------+-----------+-----------+-----------
+ Laptop       |    120.00 |    150.00 |    210.00
+ Monitor      |           |     80.00 |    110.00
+ Mouse        |     30.00 |     45.00 |          
+(3 rows)
+
+CREATE TABLE pivoted_sales AS
+SELECT product_name,
+       SUM(CASE WHEN year = 2022 THEN sales_amount ELSE 0 END) AS year_2022,
+       SUM(CASE WHEN year = 2023 THEN sales_amount ELSE 0 END) AS year_2023,
+       SUM(CASE WHEN year = 2024 THEN sales_amount ELSE 0 END) AS year_2024
+FROM sales GROUP BY product_name;
+SELECT 3
+SELECT product_name, '2022' AS year, year_2022 AS sales_amount FROM pivoted_sales
+UNION ALL
+SELECT product_name, '2023' AS year, year_2023 AS sales_amount FROM pivoted_sales
+UNION ALL
+SELECT product_name, '2024' AS year, year_2024 AS sales_amount FROM pivoted_sales
+ORDER BY product_name, year;
+ product_name | year | sales_amount 
+--------------+------+--------------
+ Laptop       | 2022 |       120.00
+ Laptop       | 2023 |       150.00
+ Laptop       | 2024 |       210.00
+ Monitor      | 2022 |            0
+ Monitor      | 2023 |        80.00
+ Monitor      | 2024 |       110.00
+ Mouse        | 2022 |        30.00
+ Mouse        | 2023 |        45.00
+ Mouse        | 2024 |            0
+(9 rows)
+
+SELECT employee_id, first_name, department, salary,
+       SUM(salary) OVER (PARTITION BY department)                       AS total_dept_salary,
+       ROUND(AVG(salary) FILTER (WHERE tenure > 5) OVER (), 2)          AS avg_salary_senior
+FROM employees
+ORDER BY employee_id;
+ employee_id | first_name | department  |  salary   | total_dept_salary | avg_salary_senior 
+-------------+------------+-------------+-----------+-------------------+-------------------
+           1 | Azamat     | Management  | 150000.00 |         150000.00 |         105500.00
+           2 | Ainura     | Engineering | 110000.00 |         350000.00 |         105500.00
+           3 | Nurlan     | Sales       |  90000.00 |         258000.00 |         105500.00
+           4 | Bakyt      | Engineering |  85000.00 |         350000.00 |         105500.00
+           5 | Meerim     | Engineering |  85000.00 |         350000.00 |         105500.00
+           6 | Aibek      | Engineering |  70000.00 |         350000.00 |         105500.00
+           7 | Aidai      | Sales       |  72000.00 |         258000.00 |         105500.00
+           8 | Tilek      | Sales       |  48000.00 |         258000.00 |         105500.00
+           9 | Gulzat     | Sales       |  48000.00 |         258000.00 |         105500.00
+(9 rows)
+
+SELECT order_id, status
+FROM orders
+ORDER BY
+    CASE status
+        WHEN 'High Priority'   THEN 1
+        WHEN 'Medium Priority' THEN 2
+        WHEN 'Low Priority'    THEN 3
+        ELSE 4
+    END,
+    order_id;
+ order_id |     status      
+----------+-----------------
+        2 | High Priority
+        5 | High Priority
+        3 | Medium Priority
+        7 | Medium Priority
+        1 | Low Priority
+        6 | Low Priority
+        4 | Shipped
+(7 rows)
+
+CREATE TABLE big_orders AS
+SELECT g AS order_id,
+       (g % 1000) + 1 AS customer_id,
+       (random() * 1000)::numeric(10,2) AS amount
+FROM generate_series(1, 200000) AS g;
+SELECT 200000
+ANALYZE big_orders;
+ANALYZE
+EXPLAIN ANALYZE
+SELECT order_id, amount FROM big_orders WHERE customer_id = 42;
+                                                  QUERY PLAN                                                   
+---------------------------------------------------------------------------------------------------------------
+ Seq Scan on big_orders  (cost=0.00..3588.00 rows=199 width=10) (actual time=0.009..6.618 rows=200.00 loops=1)
+   Filter: (customer_id = 42)
+   Rows Removed by Filter: 199800
+   Buffers: shared hit=1088
+ Planning:
+   Buffers: shared hit=11
+ Planning Time: 0.079 ms
+ Execution Time: 6.633 ms
+(8 rows)
+
+CREATE INDEX idx_big_orders_customer ON big_orders(customer_id);
+CREATE INDEX
+ANALYZE big_orders;
+ANALYZE
+EXPLAIN ANALYZE
+SELECT order_id, amount FROM big_orders WHERE customer_id = 42;
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on big_orders  (cost=5.84..515.17 rows=199 width=10) (actual time=0.059..0.182 rows=200.00 loops=1)
+   Recheck Cond: (customer_id = 42)
+   Heap Blocks: exact=200
+   Buffers: shared hit=200 read=3
+   ->  Bitmap Index Scan on idx_big_orders_customer  (cost=0.00..5.79 rows=199 width=0) (actual time=0.039..0.039 rows=200.00 loops=1)
+         Index Cond: (customer_id = 42)
+         Index Searches: 1
+         Buffers: shared read=3
+ Planning:
+   Buffers: shared hit=17 read=1
+ Planning Time: 0.109 ms
+ Execution Time: 0.201 ms
+(12 rows)
+
+EXPLAIN
+SELECT customer_id, SUM(amount) FROM big_orders GROUP BY customer_id ORDER BY 2 DESC LIMIT 10;
+                                     QUERY PLAN                                      
+-------------------------------------------------------------------------------------
+ Limit  (cost=4122.11..4122.13 rows=10 width=36)
+   ->  Sort  (cost=4122.11..4124.61 rows=1000 width=36)
+         Sort Key: (sum(amount)) DESC
+         ->  HashAggregate  (cost=4088.00..4100.50 rows=1000 width=36)
+               Group Key: customer_id
+               ->  Seq Scan on big_orders  (cost=0.00..3088.00 rows=200000 width=10)
+(6 rows)
+
+DROP TABLE employees, orders, warehouse_1, warehouse_2,
+           sales, pivoted_sales, big_orders;
+DROP TABLE
+DROP EXTENSION tablefunc;
+DROP EXTENSION
