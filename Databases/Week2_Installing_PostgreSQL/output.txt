@@ -1,0 +1,145 @@
+================================================================
+ Week 2: Installing PostgreSQL and pgAdmin -- real psql transcript
+ PostgreSQL: 18.6 (Windows 10, EDB installer)  port 1569
+ Date: 2026-11-02
+================================================================
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
+----------------------------------------------------------------
+SELECT version();
+                                 version                                 
+-------------------------------------------------------------------------
+ PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit
+(1 row)
+
+SHOW server_version;
+ server_version 
+----------------
+ 18.6
+(1 row)
+
+      Connection Information
+      Parameter       |   Value   
+----------------------+-----------
+ Database             | ulan
+ Client User          | ulan
+ Host                 | localhost
+ Host Address         | ::1
+ Server Port          | 1569
+ Options              | 
+ Protocol Version     | 3.0
+ Password Used        | true
+ GSSAPI Authenticated | false
+ Backend PID          | 10364
+ SSL Connection       | false
+ Superuser            | on
+ Hot Standby          | off
+(13 rows)
+
+SHOW port;
+ port 
+------
+ 1569
+(1 row)
+
+SHOW data_directory;
+           data_directory            
+-------------------------------------
+ C:/Program Files/PostgreSQL/18/data
+(1 row)
+
+SHOW config_file;
+                     config_file                     
+-----------------------------------------------------
+ C:/Program Files/PostgreSQL/18/data/postgresql.conf
+(1 row)
+
+SHOW hba_file;
+                    hba_file                     
+-------------------------------------------------
+ C:/Program Files/PostgreSQL/18/data/pg_hba.conf
+(1 row)
+
+SHOW server_encoding;
+ server_encoding 
+-----------------
+ UTF8
+(1 row)
+
+SHOW listen_addresses;
+ listen_addresses 
+------------------
+ *
+(1 row)
+
+SHOW max_connections;
+ max_connections 
+-----------------
+ 100
+(1 row)
+
+SELECT pg_postmaster_start_time() AS server_started,
+       now() - pg_postmaster_start_time() AS uptime;
+        server_started         |     uptime      
+-------------------------------+-----------------
+ 2026-11-02 18:50:46.405537+05 | 00:11:20.525722
+(1 row)
+
+                             List of roles
+ Role name |                         Attributes                         
+-----------+------------------------------------------------------------
+ postgres  | Superuser, Create role, Create DB, Replication, Bypass RLS
+ ulan      | Superuser
+
+                                                             List of databases
+   Name    |  Owner   | Encoding | Locale Provider |       Collate       |        Ctype        | Locale | ICU Rules |   Access privileges   
+-----------+----------+----------+-----------------+---------------------+---------------------+--------+-----------+-----------------------
+ postgres  | postgres | UTF8     | libc            | Russian_Russia.1251 | Russian_Russia.1251 |        |           | 
+ template0 | postgres | UTF8     | libc            | Russian_Russia.1251 | Russian_Russia.1251 |        |           | =c/postgres          +
+           |          |          |                 |                     |                     |        |           | postgres=CTc/postgres
+ template1 | postgres | UTF8     | libc            | Russian_Russia.1251 | Russian_Russia.1251 |        |           | =c/postgres          +
+           |          |          |                 |                     |                     |        |           | postgres=CTc/postgres
+ ulan      | ulan     | UTF8     | libc            | Russian_Russia.1251 | Russian_Russia.1251 |        |           | 
+(4 rows)
+
+SELECT rolname, rolsuper, rolcreatedb, rolcanlogin
+FROM pg_roles
+WHERE rolname IN ('postgres', 'ulan');
+ rolname  | rolsuper | rolcreatedb | rolcanlogin 
+----------+----------+-------------+-------------
+ postgres | t        | t           | t
+ ulan     | t        | f           | t
+(2 rows)
+
+DROP ROLE IF EXISTS week2_demo;
+psql:lab.sql:50: NOTICE:  role "week2_demo" does not exist, skipping
+DROP ROLE
+CREATE ROLE week2_demo LOGIN;
+CREATE ROLE
+ALTER USER week2_demo WITH PASSWORD 'your_password';
+ALTER ROLE
+SELECT rolname, left(rolpassword, 14) AS stored_as
+FROM pg_authid WHERE rolname = 'week2_demo';
+  rolname   |   stored_as    
+------------+----------------
+ week2_demo | SCRAM-SHA-256$
+(1 row)
+
+DROP ROLE week2_demo;
+DROP ROLE
+CREATE TABLE install_check (
+    id         SERIAL PRIMARY KEY,
+    note       TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE TABLE
+INSERT INTO install_check (note) VALUES ('PostgreSQL 18 is installed and running');
+INSERT 0 1
+SELECT id, note FROM install_check;
+ id |                  note                  
+----+----------------------------------------
+  1 | PostgreSQL 18 is installed and running
+(1 row)
+
+DROP TABLE install_check;
+DROP TABLE
