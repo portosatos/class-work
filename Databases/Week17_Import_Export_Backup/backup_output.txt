@@ -1,0 +1,163 @@
+================================================================
+ Week 17: Data Import/Export and Backup (part 2, backup.sh) -- real transcript
+ PostgreSQL: 18.6 (Windows 10, EDB installer)  port 1569, Git Bash
+ Date: 2026-11-02
+================================================================
+
+$ bash backup.sh
+----------------------------------------------------------------
+$ mkdir -p backups
+$ pg_dump -d company
+$ pg_dump -d company -Fc
+$ pg_dump -d company -t employees -t departments
+$ pg_dump -d company -Fc -v -f backups/company_verbose.dump
+$ head -8
+pg_dump: executing SELECT pg_catalog.set_config('search_path', '', false);
+pg_dump: last built-in OID is 16383
+pg_dump: reading extensions
+pg_dump: identifying extension members
+pg_dump: reading schemas
+pg_dump: reading user-defined tables
+pg_dump: reading user-defined functions
+pg_dump: reading user-defined types
+$ pg_dump -d company -s
+$ pg_dump -d company -a
+$ pg_dump -d company -T log_table
+$ pg_dump -d company -Fc -O
+$ ls -l backups
+total 148
+-rw-r--r-- 1 user 197121 18916 Nov  2 20:06 backup_no_owner.dump
+-rw-r--r-- 1 user 197121 10608 Nov  2 20:06 backup_without_logs.sql
+-rw-r--r-- 1 user 197121 18916 Nov  2 20:06 company.dump
+-rw-r--r-- 1 user 197121 29280 Nov  2 20:06 company.sql
+-rw-r--r-- 1 user 197121 18916 Nov  2 20:06 company_verbose.dump
+-rw-r--r-- 1 user 197121 21556 Nov  2 20:06 data_only.sql
+-rw-r--r-- 1 user 197121  8421 Nov  2 20:06 schema_only.sql
+-rw-r--r-- 1 user 197121  4484 Nov  2 20:06 tables_backup.sql
+$ grep -c 'log line' backups/company.sql backups/backup_without_logs.sql
+backups/company.sql:1000
+backups/backup_without_logs.sql:0
+$ head -40 backups/schema_only.sql
+$ grep -v '^--'
+$ grep -v '^$'
+\restrict vcDFabys4kgIjGi2BmUD8adCywkZdyBqvMF2kP2PKVlZqkBHOCko1QoKy9doe9d
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+SET default_tablespace = '';
+SET default_table_access_method = heap;
+CREATE TABLE public.customer_feedback (
+    id integer NOT NULL,
+    author character varying(50),
+    comment text
+);
+ALTER TABLE public.customer_feedback OWNER TO ulan;
+$ pg_restore --list backups/company.dump
+$ grep -v '^;'
+228; 1259 18211 TABLE public customer_feedback ulan
+227; 1259 18210 SEQUENCE public customer_feedback_id_seq ulan
+4977; 0 0 SEQUENCE OWNED BY public customer_feedback_id_seq ulan
+224; 1259 18191 TABLE public customers ulan
+220; 1259 18167 TABLE public departments ulan
+219; 1259 18166 SEQUENCE public departments_department_id_seq ulan
+4978; 0 0 SEQUENCE OWNED BY public departments_department_id_seq ulan
+222; 1259 18178 TABLE public employees ulan
+221; 1259 18177 SEQUENCE public employees_employee_id_seq ulan
+4979; 0 0 SEQUENCE OWNED BY public employees_employee_id_seq ulan
+231; 1259 18229 TABLE public log_table ulan
+230; 1259 18228 SEQUENCE public log_table_id_seq ulan
+4980; 0 0 SEQUENCE OWNED BY public log_table_id_seq ulan
+226; 1259 18198 TABLE public orders ulan
+225; 1259 18197 SEQUENCE public orders_order_id_seq ulan
+4981; 0 0 SEQUENCE OWNED BY public orders_order_id_seq ulan
+223; 1259 18185 TABLE public products ulan
+229; 1259 18220 TABLE public sales_data ulan
+4790; 2604 18214 DEFAULT public customer_feedback id ulan
+4787; 2604 18170 DEFAULT public departments department_id ulan
+4788; 2604 18181 DEFAULT public employees employee_id ulan
+4791; 2604 18232 DEFAULT public log_table id ulan
+4789; 2604 18201 DEFAULT public orders order_id ulan
+4967; 0 18211 TABLE DATA public customer_feedback ulan
+4963; 0 18191 TABLE DATA public customers ulan
+4959; 0 18167 TABLE DATA public departments ulan
+4961; 0 18178 TABLE DATA public employees ulan
+4970; 0 18229 TABLE DATA public log_table ulan
+4965; 0 18198 TABLE DATA public orders ulan
+4962; 0 18185 TABLE DATA public products ulan
+4968; 0 18220 TABLE DATA public sales_data ulan
+4982; 0 0 SEQUENCE SET public customer_feedback_id_seq ulan
+4983; 0 0 SEQUENCE SET public departments_department_id_seq ulan
+4984; 0 0 SEQUENCE SET public employees_employee_id_seq ulan
+4985; 0 0 SEQUENCE SET public log_table_id_seq ulan
+4986; 0 0 SEQUENCE SET public orders_order_id_seq ulan
+4805; 2606 18219 CONSTRAINT public customer_feedback customer_feedback_pkey ulan
+4801; 2606 18196 CONSTRAINT public customers customers_pkey ulan
+4793; 2606 18176 CONSTRAINT public departments departments_name_key ulan
+4795; 2606 18174 CONSTRAINT public departments departments_pkey ulan
+4797; 2606 18184 CONSTRAINT public employees employees_pkey ulan
+4809; 2606 18237 CONSTRAINT public log_table log_table_pkey ulan
+4803; 2606 18204 CONSTRAINT public orders orders_pkey ulan
+4799; 2606 18190 CONSTRAINT public products products_pkey ulan
+4807; 2606 18227 CONSTRAINT public sales_data sales_data_pkey ulan
+4810; 2606 18205 FK CONSTRAINT public orders orders_customer_id_fkey ulan
+$ dropdb --if-exists company_restored
+NOTICE:  database "company_restored" does not exist, skipping
+$ createdb company_restored
+$ pg_restore -d company_restored backups/company.dump
+$ dropdb --if-exists company_one_table
+NOTICE:  database "company_one_table" does not exist, skipping
+$ createdb company_one_table
+$ pg_restore -d company_one_table -t employees backups/company.dump
+$ psql -d company_one_table -c '\dt'
+           List of tables
+ Schema |   Name    | Type  | Owner 
+--------+-----------+-------+-------
+ public | employees | table | ulan
+(1 row)
+
+$ dropdb --if-exists company_parallel
+NOTICE:  database "company_parallel" does not exist, skipping
+$ createdb company_parallel
+$ pg_restore -d company_parallel -j 4 backups/company.dump
+$ for db in company company_restored company_parallel
+$ psql -d company -Atc 'SELECT '\''company'\'', (SELECT count(*) FROM employees), (SELECT count(*) FROM customers), (SELECT count(*) FROM log_table)'
+company|7|5|1000
+$ for db in company company_restored company_parallel
+$ psql -d company_restored -Atc 'SELECT '\''company_restored'\'', (SELECT count(*) FROM employees), (SELECT count(*) FROM customers), (SELECT count(*) FROM log_table)'
+company_restored|7|5|1000
+$ for db in company company_restored company_parallel
+$ psql -d company_parallel -Atc 'SELECT '\''company_parallel'\'', (SELECT count(*) FROM employees), (SELECT count(*) FROM customers), (SELECT count(*) FROM log_table)'
+company_parallel|7|5|1000
+$ pg_dumpall --globals-only --no-role-passwords
+$ grep -E '^(CREATE|ALTER) ROLE' backups/globals.sql
+CREATE ROLE postgres;
+ALTER ROLE postgres WITH SUPERUSER INHERIT CREATEROLE CREATEDB LOGIN REPLICATION BYPASSRLS;
+CREATE ROLE ulan;
+ALTER ROLE ulan WITH SUPERUSER INHERIT NOCREATEROLE NOCREATEDB LOGIN NOREPLICATION NOBYPASSRLS;
+ALTER ROLE ulan SET lc_messages TO 'C';
+$$ mktemp -d
+$ BASE=/tmp/tmp.jNCryaeGsy
+$ pg_basebackup -D /tmp/tmp.jNCryaeGsy -Ft -z -P
+waiting for checkpoint
+   84/66888 kB (0%), 0/1 tablespace
+66899/66899 kB (100%), 0/1 tablespace
+66899/66899 kB (100%), 1/1 tablespace
+$ ls -l /tmp/tmp.jNCryaeGsy
+total 9084
+-rw-r--r-- 1 user 197121  372103 Nov  2 20:10 backup_manifest
+-rw-r--r-- 1 user 197121 8899244 Nov  2 20:10 base.tar.gz
+-rw-r--r-- 1 user 197121   27900 Nov  2 20:10 pg_wal.tar.gz
+$ rm -rf /tmp/tmp.jNCryaeGsy
+$ dropdb company_one_table
+$ dropdb company_parallel
+$ dropdb company_restored
+$ dropdb company
+$ rm backups/company_verbose.dump

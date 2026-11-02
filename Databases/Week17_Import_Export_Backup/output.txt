@@ -1,0 +1,312 @@
+================================================================
+ Week 17: Data Import/Export and Backup (part 1, COPY) -- real psql transcript
+ PostgreSQL: 18.6 (Windows 10, EDB installer)  port 1569
+ Date: 2026-11-02
+================================================================
+
+$ psql -h localhost -p 1569 -U ulan -d ulan -f lab.sql
+----------------------------------------------------------------
+DROP DATABASE IF EXISTS company;
+DROP DATABASE
+DROP DATABASE IF EXISTS company_restored;
+psql:lab.sql:14: NOTICE:  database "company_restored" does not exist, skipping
+DROP DATABASE
+CREATE DATABASE company;
+CREATE DATABASE
+You are now connected to database "company" as user "ulan".
+CREATE TABLE departments (
+    department_id SERIAL PRIMARY KEY,
+    name          VARCHAR(50) UNIQUE NOT NULL
+);
+CREATE TABLE
+CREATE TABLE employees (
+    employee_id SERIAL PRIMARY KEY,
+    first_name  VARCHAR(50),
+    last_name   VARCHAR(50),
+    email       VARCHAR(100),
+    department  VARCHAR(50),
+    hire_date   DATE
+);
+CREATE TABLE
+CREATE TABLE products (
+    product_id INT PRIMARY KEY,
+    name       VARCHAR(50),
+    category   VARCHAR(50),
+    price      NUMERIC(10,2)
+);
+CREATE TABLE
+CREATE TABLE customers (
+    customer_id INT PRIMARY KEY,
+    name        VARCHAR(100),
+    email       VARCHAR(100)
+);
+CREATE TABLE
+CREATE TABLE orders (
+    order_id    SERIAL PRIMARY KEY,
+    customer_id INT REFERENCES customers(customer_id),
+    order_date  DATE,
+    total       NUMERIC(10,2)
+);
+CREATE TABLE
+CREATE TABLE customer_feedback (
+    id      SERIAL PRIMARY KEY,
+    author  VARCHAR(50),
+    comment TEXT
+);
+CREATE TABLE
+CREATE TABLE sales_data (
+    sale_id INT PRIMARY KEY,
+    region  VARCHAR(20),
+    amount  NUMERIC(10,2),
+    note    TEXT
+);
+CREATE TABLE
+CREATE TABLE log_table (
+    id      SERIAL PRIMARY KEY,
+    message TEXT
+);
+CREATE TABLE
+INSERT INTO departments (name) VALUES ('IT'), ('Sales'), ('HR');
+INSERT 0 3
+INSERT INTO employees (first_name, last_name, email, department, hire_date) VALUES
+('Aibek',  'Sharshenov', 'aibek@corp.kg',  'IT',    '2021-03-15'),
+('Ainura', 'Toktomamatova', NULL,          'IT',    '2022-07-01'),
+('Bakyt',  'Mamatov',    'bakyt@corp.kg',  'Sales', '2020-01-10'),
+('Gulzat', 'Sultanova',  'gulzat@corp.kg', 'HR',    '2023-05-05');
+INSERT 0 4
+INSERT INTO products VALUES
+(1, 'Laptop', 'Electronics', 1200.00), (2, 'Mouse', 'Electronics', 20.00),
+(3, 'Desk', 'Furniture', 300.00);
+INSERT 0 3
+INSERT INTO customers VALUES
+(1, 'Aibek Sharshenov', 'aibek@mail.kg'),
+(2, 'Ainura Toktomamatova', 'ainura@mail.kg'),
+(3, 'Bakyt Mamatov', 'bakyt@mail.kg');
+INSERT 0 3
+INSERT INTO orders (customer_id, order_date, total) VALUES
+(1, '2026-10-01', 1220.00), (2, '2026-10-03', 300.00), (1, '2026-10-20', 20.00);
+INSERT 0 3
+INSERT INTO customer_feedback (author, comment) VALUES
+('Aibek',  'Fast delivery, great price'),
+('Ainura', 'The box said "fragile", it was not packed well'),
+('Bakyt',  'Fine, thanks');
+INSERT 0 3
+INSERT INTO log_table (message)
+SELECT 'log line ' || g FROM generate_series(1, 1000) g;
+INSERT 0 1000
+SELECT current_setting('data_directory') AS datadir 
+COPY employees TO 'C:/Program Files/PostgreSQL/18/data/lab17_employees.csv' WITH CSV HEADER;
+COPY 4
+SELECT pg_read_file('C:/Program Files/PostgreSQL/18/data/lab17_employees.csv');
+                         pg_read_file                          
+---------------------------------------------------------------
+ employee_id,first_name,last_name,email,department,hire_date\r+
+ 1,Aibek,Sharshenov,aibek@corp.kg,IT,2021-03-15\r             +
+ 2,Ainura,Toktomamatova,,IT,2022-07-01\r                      +
+ 3,Bakyt,Mamatov,bakyt@corp.kg,Sales,2020-01-10\r             +
+ 4,Gulzat,Sultanova,gulzat@corp.kg,HR,2023-05-05\r            +
+ 
+(1 row)
+
+CREATE TABLE employees_copy (LIKE employees);
+CREATE TABLE
+COPY employees_copy FROM 'C:/Program Files/PostgreSQL/18/data/lab17_employees.csv' WITH CSV HEADER;
+COPY 4
+SELECT * FROM employees_copy;
+ employee_id | first_name |   last_name   |     email      | department | hire_date  
+-------------+------------+---------------+----------------+------------+------------
+           1 | Aibek      | Sharshenov    | aibek@corp.kg  | IT         | 2021-03-15
+           2 | Ainura     | Toktomamatova |                | IT         | 2022-07-01
+           3 | Bakyt      | Mamatov       | bakyt@corp.kg  | Sales      | 2020-01-10
+           4 | Gulzat     | Sultanova     | gulzat@corp.kg | HR         | 2023-05-05
+(4 rows)
+
+COPY employees TO 'C:/Program Files/PostgreSQL/18/data/lab17_employees.txt' WITH DELIMITER '|' NULL 'N/A' CSV HEADER;
+COPY 4
+SELECT pg_read_file('C:/Program Files/PostgreSQL/18/data/lab17_employees.txt');
+                         pg_read_file                          
+---------------------------------------------------------------
+ employee_id|first_name|last_name|email|department|hire_date\r+
+ 1|Aibek|Sharshenov|aibek@corp.kg|IT|2021-03-15\r             +
+ 2|Ainura|Toktomamatova|N/A|IT|2022-07-01\r                   +
+ 3|Bakyt|Mamatov|bakyt@corp.kg|Sales|2020-01-10\r             +
+ 4|Gulzat|Sultanova|gulzat@corp.kg|HR|2023-05-05\r            +
+ 
+(1 row)
+
+COPY (SELECT * FROM employees WHERE department = 'IT') TO 'C:/Program Files/PostgreSQL/18/data/lab17_it_employees.csv' WITH CSV HEADER;
+COPY 2
+SELECT pg_read_file('C:/Program Files/PostgreSQL/18/data/lab17_it_employees.csv');
+                         pg_read_file                          
+---------------------------------------------------------------
+ employee_id,first_name,last_name,email,department,hire_date\r+
+ 1,Aibek,Sharshenov,aibek@corp.kg,IT,2021-03-15\r             +
+ 2,Ainura,Toktomamatova,,IT,2022-07-01\r                      +
+ 
+(1 row)
+
+COPY employees TO 'employees.csv' WITH CSV HEADER;
+psql:lab.sql:120: ERROR:  relative path not allowed for COPY to file
+COPY  products TO STDOUT WITH CSV HEADER
+COPY 3
+COPY  customers TO STDOUT WITH CSV HEADER DELIMITER ';' QUOTE '"'
+COPY 3
+COPY  orders TO STDOUT WITH (FORMAT csv, HEADER, FORCE_QUOTE (order_date))
+COPY 3
+COPY  customer_feedback TO STDOUT WITH CSV HEADER DELIMITER ',' QUOTE '"' ESCAPE '"'
+COPY 3
+COPY  ( SELECT department, count ( * ) AS employees FROM employees GROUP BY department ORDER BY 1 ) TO STDOUT WITH CSV HEADER
+COPY 3
+COPY  employees ( first_name, last_name, email ) FROM STDIN WITH CSV HEADER
+COPY 3
+SELECT employee_id, first_name, last_name, email, department FROM employees ORDER BY employee_id;
+ employee_id | first_name |   last_name   |       email       | department 
+-------------+------------+---------------+-------------------+------------
+           1 | Aibek      | Sharshenov    | aibek@corp.kg     | IT
+           2 | Ainura     | Toktomamatova |                   | IT
+           3 | Bakyt      | Mamatov       | bakyt@corp.kg     | Sales
+           4 | Gulzat     | Sultanova     | gulzat@corp.kg    | HR
+           5 | Nursultan  | Isakov        | nursultan@corp.kg | 
+           6 | Meerim     | Bekova        | meerim@corp.kg    | 
+           7 | Tilek      | Usubaliev     | tilek@corp.kg     | 
+(7 rows)
+
+COPY  sales_data FROM STDIN WITH CSV HEADER NULL 'NULL' ENCODING 'UTF8'
+COPY 3
+SELECT sale_id, region, amount, note, note IS NULL AS note_is_null FROM sales_data;
+ sale_id | region | amount  |     note     | note_is_null 
+---------+--------+---------+--------------+--------------
+       1 | North  | 1200.00 |              | t
+       2 | South  |         | late payment | f
+       3 | East   |  560.50 |              | t
+(3 rows)
+
+COPY  products FROM STDIN WITH CSV HEADER
+psql:lab.sql:147: ERROR:  invalid input syntax for type numeric: "not_a_price"
+CONTEXT:  COPY products, line 3, column price: "not_a_price"
+SELECT count(*) AS products_after_failed_copy FROM products;
+ products_after_failed_copy 
+----------------------------
+                          3
+(1 row)
+
+COPY  products FROM STDIN WITH (FORMAT csv, HEADER, ON_ERROR ignore, LOG_VERBOSITY verbose)
+psql:lab.sql:151: NOTICE:  skipping row due to data type incompatibility at line 3 for column "price": "not_a_price"
+psql:lab.sql:151: NOTICE:  skipping row due to data type incompatibility at line 5 for column "product_id": "abc"
+psql:lab.sql:151: NOTICE:  2 rows were skipped due to data type incompatibility
+COPY 3
+SELECT * FROM products ORDER BY product_id;
+ product_id |    name    |  category   |  price  
+------------+------------+-------------+---------
+          1 | Laptop     | Electronics | 1200.00
+          2 | Mouse      | Electronics |   20.00
+          3 | Desk       | Furniture   |  300.00
+         10 | Webcam     | Electronics |   59.90
+         12 | Microphone | Electronics |  120.00
+         13 | Ring light | Accessories |   35.50
+(6 rows)
+
+CREATE TABLE staging_customers AS SELECT * FROM customers WHERE 1 = 0;
+SELECT 0
+COPY  ( SELECT * FROM customers ORDER BY customer_id LIMIT 10000 OFFSET 0 ) TO STDOUT WITH CSV HEADER
+COPY 3
+COPY  staging_customers FROM STDIN WITH CSV HEADER
+COPY 4
+SELECT * FROM staging_customers;
+ customer_id |         name         |       email        
+-------------+----------------------+--------------------
+           1 | Aibek Sharshenov     | aibek@mail.kg
+           2 | Ainura Toktomamatova | ainura.new@mail.kg
+           5 | Bermet Asanova       | bermet@mail.kg
+           6 | Kanykei Osmonova     | kanykei@mail.kg
+(4 rows)
+
+SELECT count(*) AS rows, count(DISTINCT customer_id) AS distinct_ids,
+       count(*) FILTER (WHERE email IS NULL) AS missing_emails
+FROM staging_customers;
+ rows | distinct_ids | missing_emails 
+------+--------------+----------------
+    4 |            4 |              0
+(1 row)
+
+INSERT INTO customers
+SELECT * FROM staging_customers
+ON CONFLICT (customer_id) DO UPDATE
+SET name = EXCLUDED.name, email = EXCLUDED.email;
+INSERT 0 4
+SELECT * FROM customers ORDER BY customer_id;
+ customer_id |         name         |       email        
+-------------+----------------------+--------------------
+           1 | Aibek Sharshenov     | aibek@mail.kg
+           2 | Ainura Toktomamatova | ainura.new@mail.kg
+           3 | Bakyt Mamatov        | bakyt@mail.kg
+           5 | Bermet Asanova       | bermet@mail.kg
+           6 | Kanykei Osmonova     | kanykei@mail.kg
+(5 rows)
+
+DROP TABLE staging_customers, employees_copy;
+DROP TABLE
+SHOW wal_level;
+ wal_level 
+-----------
+ replica
+(1 row)
+
+SHOW archive_mode;
+ archive_mode 
+--------------
+ off
+(1 row)
+
+SELECT pg_create_restore_point('before_data_migration');
+ pg_create_restore_point 
+-------------------------
+ 0/44D4120
+(1 row)
+
+SELECT pg_walfile_name(pg_current_wal_lsn()) AS wal_file_before;
+     wal_file_before      
+--------------------------
+ 000000010000000000000004
+(1 row)
+
+SELECT pg_switch_wal();
+ pg_switch_wal 
+---------------
+ 0/44D4138
+(1 row)
+
+SELECT pg_walfile_name(pg_current_wal_lsn()) AS wal_file_after;
+      wal_file_after      
+--------------------------
+ 000000010000000000000005
+(1 row)
+
+SELECT relname AS table_name, n_live_tup AS rows
+FROM pg_stat_user_tables ORDER BY relname;
+    table_name     | rows 
+-------------------+------
+ customer_feedback |    0
+ customers         |    0
+ departments       |    0
+ employees         |    0
+ log_table         |    0
+ orders            |    0
+ products          |    0
+ sales_data        |    0
+(8 rows)
+
+               List of tables
+ Schema |       Name        | Type  | Owner 
+--------+-------------------+-------+-------
+ public | customer_feedback | table | ulan
+ public | customers         | table | ulan
+ public | departments       | table | ulan
+ public | employees         | table | ulan
+ public | log_table         | table | ulan
+ public | orders            | table | ulan
+ public | products          | table | ulan
+ public | sales_data        | table | ulan
+(8 rows)
+
+You are now connected to database "ulan" as user "ulan".

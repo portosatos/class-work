@@ -1,0 +1,4 @@
+sale_id,region,amount,note
+1,North,1200.00,NULL
+2,South,NULL,"late payment"
+3,East,560.50,NULL

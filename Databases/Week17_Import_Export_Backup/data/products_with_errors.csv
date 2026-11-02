@@ -1,0 +1,6 @@
+product_id,name,category,price
+10,Webcam,Electronics,59.90
+11,Tripod,Accessories,not_a_price
+12,Microphone,Electronics,120.00
+abc,Broken row,Misc,1.00
+13,Ring light,Accessories,35.50
