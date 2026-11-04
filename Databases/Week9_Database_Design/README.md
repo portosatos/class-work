@@ -23,29 +23,39 @@ erDiagram
     PROFESSORS ||--o{ COURSES : teaches
     STUDENTS ||--o{ ENROLLMENTS : "enrolls in"
     COURSES ||--o{ ENROLLMENTS : "has"
-    DEPARTMENTS { int department_id PK
-                  varchar department_name
-                  varchar department_head }
-    STUDENTS { int student_id PK
-               varchar first_name
-               varchar last_name
-               varchar email
-               date date_of_birth
-               varchar street
-               varchar city
-               varchar zip_code
-               int department_id FK }
-    PROFESSORS { int professor_id PK
-                 varchar first_name
-                 varchar last_name
-                 int department_id FK }
-    COURSES { int course_id PK
-              varchar course_name
-              int credits
-              int professor_id FK }
-    ENROLLMENTS { int student_id PK, FK
-                  int course_id PK, FK
-                  char grade }
+    DEPARTMENTS {
+        int department_id PK
+        varchar department_name
+        varchar department_head
+    }
+    STUDENTS {
+        int student_id PK
+        varchar first_name
+        varchar last_name
+        varchar email
+        date date_of_birth
+        varchar street
+        varchar city
+        varchar zip_code
+        int department_id FK
+    }
+    PROFESSORS {
+        int professor_id PK
+        varchar first_name
+        varchar last_name
+        int department_id FK
+    }
+    COURSES {
+        int course_id PK
+        varchar course_name
+        int credits
+        int professor_id FK
+    }
+    ENROLLMENTS {
+        int student_id PK, FK
+        int course_id PK, FK
+        char grade
+    }
 ```
 
 Entities become tables, attributes become columns, relationships become

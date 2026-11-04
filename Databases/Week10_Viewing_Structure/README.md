@@ -76,35 +76,47 @@ erDiagram
     SUPPLIERS ||--o{ COF_INVENTORY : "stocked from"
     SUPPLIERS ||--o{ MERCH_INVENTORY : supplies
     COFFEES ||--o{ COF_INVENTORY : "stored as"
-    SUPPLIERS { integer sup_id PK "IDENTITY"
-                varchar sup_name
-                varchar street
-                varchar city
-                varchar state
-                varchar zip }
-    COFFEES { varchar cof_name PK
-              integer sup_id FK
-              real price
-              integer sales
-              integer total }
-    COF_INVENTORY { integer warehouse_id PK
-                    varchar cof_name PK, FK
-                    integer sup_id PK, FK
-                    integer quan
-                    date date_val }
-    MERCH_INVENTORY { integer item_id PK
-                      varchar item_name
-                      integer sup_id FK
-                      integer quan
-                      date date }
-    COFFEE_HOUSES { integer store_id PK
-                    varchar city
-                    integer coffee
-                    integer merch
-                    integer total }
-    UNIVERSITY_STUDENTS { integer student_id PK
-                          text first_name
-                          varchar last_name
-                          varchar email_address UK
-                          date date_of_birth }
+    SUPPLIERS {
+        integer sup_id PK "IDENTITY"
+        varchar sup_name
+        varchar street
+        varchar city
+        varchar state
+        varchar zip
+    }
+    COFFEES {
+        varchar cof_name PK
+        integer sup_id FK
+        real price
+        integer sales
+        integer total
+    }
+    COF_INVENTORY {
+        integer warehouse_id PK
+        varchar cof_name PK, FK
+        integer sup_id PK, FK
+        integer quan
+        date date_val
+    }
+    MERCH_INVENTORY {
+        integer item_id PK
+        varchar item_name
+        integer sup_id FK
+        integer quan
+        date date
+    }
+    COFFEE_HOUSES {
+        integer store_id PK
+        varchar city
+        integer coffee
+        integer merch
+        integer total
+    }
+    UNIVERSITY_STUDENTS {
+        integer student_id PK
+        text first_name
+        varchar last_name
+        varchar email_address UK
+        date date_of_birth
+    }
 ```
